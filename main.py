@@ -20,40 +20,30 @@ def main_request():
 
 def low_high_buttons(message):
     max_hotels_to_find = 20
-    town_to_find = input(bot.send_message(message.from_user.id, "Введите город для поиска отелей: "))
-    number_hotels_to_find = int(input(bot.send_message(message.from_user.id, "Введите кол-во отелей для поиска: ")))
-    if number_hotels_to_find > max_hotels_to_find:
-        bot.send_message(message.from_user.id, f'Кол-во отелей не может быть больше {max_hotels_to_find}')
-        number_hotels_to_find = 0
-    need_photos = input(bot.send_message(message.from_user.id, "Нужны ли фотографии отелей?Да/Нет ")).lower()
-    if need_photos == 'да':
-        town_to_find = input(bot.send_message(message.from_user.id, "Сколько фотографий необходимо вывести? "))
 
 
-@bot.message_handler(commands=['start', 'lowprice', 'highprice', 'bestdeal', 'history'])
+@bot.message_handler(commands=['start', 'lowprice', 'highprice', 'bestdeal', 'history', 'help'])
 def get_text_messages(message):
-    if message.text == "/start":
+    s = message.text
+    s = s.lower()
+    if s == "/start":
         bot.send_message(message.from_user.id, "Привет, чем я могу тебе помочь?")
-    elif message.text == "/lowprice":
+        bot.send_message(message.from_user.id, f'{type(message.text)}')
+
+    elif s == "/lowprice":
         low_high_buttons(message)
     elif message.text == "/highprice":
         low_high_buttons(message)
     elif message.text == "/bestdeal":
-        town_to_find = input(bot.send_message(message.from_user.id, "Введите город для поиска отелей: "))
-        price_range = input(bot.send_message(message.from_user.id, "Введите диапазон цен: ")).split('-')
-        distance_range = input(bot.send_message(message.from_user.id, "Введите диапазон расстояния от центра: ")).split('-')
-        number_hotels_to_find = 0
-        max_hotels_to_find = 20
-        while number_hotels_to_find == 0 or number_hotels_to_find > max_hotels_to_find:
-            number_hotels_to_find = int(input(bot.send_message(message.from_user.id, "Введите кол-во отелей для поиска: ")))
-            bot.send_message(message.from_user.id, f'Кол-во отелей не может быть больше {max_hotels_to_find}')
-    elif message.text == '/history':
+        pass
+    elif message.text.lower == '/history':
         bot.send_message(message.from_user.id, 'История')
 
-    elif message.text == "/stop":
+    elif message.text.lower == "/stop":
         ending_text_messages(message)
     else:
         bot.send_message(message.from_user.id, "Я тебя не понимаю. Напиши /help.")
+
 
 @bot.message_handler(commands=['stop'])
 def ending_text_messages(message):
