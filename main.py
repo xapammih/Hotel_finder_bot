@@ -1,24 +1,12 @@
-from config_data import config
+from utils.set_bot_commands import set_default_commands
 from loader import bot
-import requests
-import json
-from handlers.default_handlers import start
-
-def main_request():
-    url = 'https://hotels4.p.rapidapi.com/locations/v2/search'
-    querystring = {"query": "london", "locale": "en_UK", "currency": "USD"}
-    headers = {
-        'x-rapidapi-host': "hotels4.p.rapidapi.com",
-        'x-rapidapi-key': config.rapidapi_key
-    }
-    response = requests.request("GET", url, headers=headers, params=querystring)
-    with open('test.json', 'w') as file:
-        json.dump(response.text, file, sort_keys=True, indent=4)
-
+from handlers.default_handlers import start, echo, help, history
+from utils.API.requests import main_request
 
 if __name__ == "__main__":
     main_request()
     try:
+        set_default_commands(bot)
         bot.polling(none_stop=True)
     except ConnectionError as e:
         print('Ошибка соединения: ', e)
