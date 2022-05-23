@@ -7,7 +7,7 @@ def main_request():
     querystring = {"query": "london", "locale": "en_UK", "currency": "USD"}
     headers = {
         'x-rapidapi-host': "hotels4.p.rapidapi.com",
-        'x-rapidapi-key': config.rapidapi_key
+        'x-rapidapi-key': config.RAPID_API_KEY
     }
     response = requests.request("GET", url, headers=headers, params=querystring)
     with open('request_from_API.json', 'w') as file:
