@@ -1,8 +1,9 @@
 from utils.set_bot_commands import set_default_commands
 from loader import bot
-from handlers.default_handlers import start, echo, help, history
+import handlers
 from telebot.custom_filters import StateFilter
 from utils.API.requests import main_request
+
 
 if __name__ == "__main__":
     main_request()
