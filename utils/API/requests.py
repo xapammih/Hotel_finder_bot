@@ -1,11 +1,11 @@
 import json
 import requests
 from config_data import config
-import os
 
-def main_request():
+
+def main_request(city_to_find):
     url = 'https://hotels4.p.rapidapi.com/locations/v2/search'
-    querystring = {"query": "london", "locale": "en_UK", "currency": "USD"}
+    querystring = {"query": city_to_find, "locale": "en_UK", "currency": "USD"}
     headers = {
         'x-rapidapi-host': "hotels4.p.rapidapi.com",
         'x-rapidapi-key': config.RAPID_API_KEY

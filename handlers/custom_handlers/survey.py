@@ -7,7 +7,7 @@ from keyboards.reply.contact import request_contact
 @bot.message_handler(commands=['survey'])
 def survey(message: Message) -> None:
     bot.set_state(message.from_user.id, UserInfoState.name, message.chat.id)
-    bot.send_message(message.from_user.id, f'Привет, {message.from_user.first_name} Введите ваше имя: ')
+    bot.send_message(message.from_user.id, f'Привет, {message.from_user.first_name}! Введите ваше имя: ')
 
 
 @bot.message_handler(state=UserInfoState.name)
@@ -68,5 +68,5 @@ def get_phone_number(message: Message) -> None:
             bot.send_message(message.from_user.id, text)
     else:
         bot.send_message(message.from_user.id, 'Чтобы отправить контактную информацию, нажми на кнопку')
-
+    bot.delete_state(message.from_user.id)
 

@@ -1,12 +1,45 @@
 from loader import bot
 from states.city_to_find_info import CityInfoState
 from telebot.types import Message
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+import json
+import utils.API
+import re
+
+
+def city_founding():
+    response = utils.API.requests.main_request(city_to_find='london')
+    with open('request_from_API.json', 'r', encoding='utf-8') as file:
+        pattern = r'(?<="CITY_GROUP",).+?[\]]'
+        result = json.load(file)
+        find = re.search(pattern, result)
+    if find:
+        suggestions = json.loads(f"{{{find[0]}}}")
+    cities = list()
+    for dest_id in suggestions['entities']:
+        clear_destination = re.sub(dest_id['caption'])
+        cities.append({'city_name': clear_destination, 'destination_id': dest_id['destinationId']})
+    return cities
+
+
+def city_markup():
+    cities = city_founding()
+    destinations = InlineKeyboardMarkup()
+    for city in cities:
+        destinations.add(InlineKeyboardButton(text=city['city_name'],
+                                              callback_data=f'{city["destination_id"]}'))
+    return destinations
 
 
 @bot.message_handler(commands=['search'])
 def search(message: Message) -> None:
     bot.set_state(message.from_user.id, CityInfoState.city, message.chat.id)
     bot.send_message(message.from_user.id, f'Введите город, в какой вы бы хотели отправиться: ')
+    bot.register_next_step_handler(message, city)
+
+
+def city(message):
+    bot.send_message(message.from_user.id, 'Уточните, пожалуйста:', reply_markup=city_markup())
 
 
 @bot.message_handler(state=CityInfoState.city)
@@ -68,3 +101,4 @@ def get_count_photo(message: Message) -> None:
            f'Необходимость фотографий - {data["need_photo"]}\n' \
            f'Количество фотографий - {data["count_photo"]}'
     bot.send_message(message.from_user.id, text)
+    bot.delete_state(message.from_user.id)
