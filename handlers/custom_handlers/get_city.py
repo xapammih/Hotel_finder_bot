@@ -8,7 +8,6 @@ import re
 
 
 def city_founding():
-    response = utils.API.requests.main_request(city_to_find='london')
     with open('request_from_API.json', 'r', encoding='utf-8') as file:
         pattern = r'(?<="CITY_GROUP",).+?[\]]'
         result = json.load(file)
@@ -17,12 +16,13 @@ def city_founding():
         suggestions = json.loads(f"{{{find[0]}}}")
     cities = list()
     for dest_id in suggestions['entities']:
-        clear_destination = re.sub(dest_id['caption'])
+        clear_destination = dest_id.get('name')
         cities.append({'city_name': clear_destination, 'destination_id': dest_id['destinationId']})
     return cities
 
 
-def city_markup():
+def city_markup(city_to_find):
+    response = utils.API.requests.main_request(city_to_find)
     cities = city_founding()
     destinations = InlineKeyboardMarkup()
     for city in cities:
@@ -39,16 +39,15 @@ def search(message: Message) -> None:
 
 
 def city(message):
-    bot.send_message(message.from_user.id, 'Уточните, пожалуйста:', reply_markup=city_markup())
+    bot.send_message(message.from_user.id, 'Уточните, пожалуйста:', reply_markup=city_markup(message.text))
 
 
-@bot.message_handler(state=CityInfoState.city)
+@bot.callback_query_handler(func=lambda call: True)
 def get_city(message: Message) -> None:
+    bot.set_state(message.from_user.id, CityInfoState.city)
     bot.send_message(message.from_user.id, 'Записал! Теперь введите дату въезда')
-    bot.set_state(message.from_user.id, CityInfoState.arrival_date, message.chat.id)
-
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        data['city'] = message.text
+    with bot.retrieve_data(message.from_user.id) as data:
+        data['city'] = message.from_user.id
 
 
 @bot.message_handler(state=CityInfoState.arrival_date)
