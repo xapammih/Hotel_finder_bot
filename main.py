@@ -2,7 +2,6 @@ from utils.set_bot_commands import set_default_commands
 from loader import bot
 import handlers
 from telebot.custom_filters import StateFilter
-from utils.API.requests import main_request
 
 
 if __name__ == "__main__":
