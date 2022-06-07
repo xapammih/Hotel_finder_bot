@@ -1,3 +1,7 @@
+from datetime import date
+
+from keyboards.inline import calendar
+import keyboards.inline.calendar as cal
 from loader import bot
 from states.city_to_find_info import CityInfoState
 from telebot.types import Message
@@ -5,6 +9,7 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 import json
 import utils.API
 import re
+from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
 
 
 def city_founding():
@@ -43,37 +48,26 @@ def search(message: Message) -> None:
     bot.register_next_step_handler(message, city)
 
 
-@bot.callback_query_handler(func=lambda call: True)
+@bot.callback_query_handler(func=lambda call: call.data.isdigit)
 def city_inline_callback(call) -> None:
-    bot.send_message(call.message.chat.id, 'Записал! Введите дату заезда: ')
+    print(call.data)
+    for i in call.message.reply_markup.keyboard:
+        for keyboard in i:
+            if keyboard.callback_data == call.data:
+                print(keyboard.text)
+                print(call.data)
     with bot.retrieve_data(call.from_user.id, call.message.chat.id) as data:
-        print(call)
-        print(data)
-        data['id_location'] = call.data
-    bot.answer_callback_query(call.id)
+        data['city'] = keyboard.text
+        data['destination_id'] = call.data
 
-
-@bot.message_handler(state=CityInfoState.arrival_date)
-def get_arrival_data(message: Message) -> None:
-    bot.send_message(message.from_user.id, 'Записал! Теперь введите дату отъезда: ')
-    bot.set_state(message.from_user.id, CityInfoState.departure_date, message.chat.id)
-
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        data['arrival_data'] = message.text
-
-
-@bot.message_handler(state=CityInfoState.departure_date)
-def get_departure_data(message: Message) -> None:
-    bot.send_message(message.from_user.id, 'Выберите валюту рассчета')
-    bot.set_state(message.from_user.id, CityInfoState.currency, message.chat.id)
-
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        data['departure_data'] = message.text
+    bot.set_state(str(call.message.chat.id), CityInfoState.arrival_date)
+    bot.register_next_step_handler(call.message, cal.get_arrival_data(call.message))
 
 
 @bot.message_handler(state=CityInfoState.currency)
 def get_currency(message: Message) -> None:
-    bot.send_message(message.from_user.id, 'Нужны ли фото отеля?')
+    bot.send_message(message.from_user.id, 'Выберите валюту рассчета')
+
     bot.set_state(message.from_user.id, CityInfoState.need_photo, message.chat.id)
 
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
@@ -82,7 +76,8 @@ def get_currency(message: Message) -> None:
 
 @bot.message_handler(state=CityInfoState.need_photo)
 def get_need_photo(message: Message) -> None:
-    bot.send_message(message.from_user.id, 'Сколько фотографий отображаем? ')
+    bot.send_message(message.from_user.id, 'Нужны ли фото отеля?')
+
     bot.set_state(message.from_user.id, CityInfoState.count_photo, message.chat.id)
 
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
@@ -91,12 +86,12 @@ def get_need_photo(message: Message) -> None:
 
 @bot.message_handler(state=CityInfoState.count_photo)
 def get_count_photo(message: Message) -> None:
-
+    bot.send_message(message.from_user.id, 'Сколько фотографий отображаем? ')
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data['count_photo'] = message.text
 
     text = f'Спасибо за предоставленную информацию, ваш запрос: \n' \
-           f'Город - {data["id_location"]}\n' \
+           f'Город - {data["city"]}\n' \
            f'Дата заезда - {data["arrival_data"]}\n' \
            f'Дата отъезда - {data["departure_data"]}\n' \
            f'Валюта расчета - {data["currency"]}\n' \
