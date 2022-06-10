@@ -48,7 +48,7 @@ def search(message: Message) -> None:
     bot.register_next_step_handler(message, city)
 
 
-@bot.callback_query_handler(func=lambda call: call.data.isdigit)
+@bot.callback_query_handler(func=lambda call: call.data.isdigit())
 def city_inline_callback(call) -> None:
     print(call.data)
     for i in call.message.reply_markup.keyboard:
@@ -66,7 +66,7 @@ def city_inline_callback(call) -> None:
 
 @bot.message_handler(state=CityInfoState.currency)
 def get_currency(message: Message) -> None:
-    bot.send_message(message.from_user.id, 'Выберите валюту рассчета')
+    bot.send_message(message.chat.id, 'Выберите валюту рассчета')
 
     bot.set_state(message.from_user.id, CityInfoState.need_photo, message.chat.id)
 

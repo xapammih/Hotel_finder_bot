@@ -1,4 +1,4 @@
-from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
+from telegram_bot_calendar import DetailedTelegramCalendar
 from loader import bot
 from handlers.custom_handlers.get_city import get_currency
 from states.city_to_find_info import CityInfoState
@@ -31,17 +31,18 @@ def cal_arrival_data(call):
         bot.edit_message_text(f"Вы выбрали {result}",
                               call.message.chat.id,
                               call.message.message_id)
-        with bot.retrieve_data(call.from_user.id, call.chat.id) as data:
+        with bot.retrieve_data(call.from_user.id, call.message.chat.id) as data:
             data['arrival_data'] = result
         bot.set_state(str(call.message.chat.id), CityInfoState.departure_date)
-        get_departure_data(call.message)
+        bot.register_next_step_handler(call.message, get_departure_data(call.message))
 
 
+# min_date=CityInfoState.arrival_date + timedelta(days=1)
 @bot.message_handler(state=CityInfoState.departure_date)
 def get_departure_data(message: Message) -> None:
-    bot.send_message(message.from_user.id, 'Записал! Теперь введите дату отъезда: ')
+    bot.send_message(message.chat.id, 'Записал! Теперь введите дату отъезда: ')
     calendar, step = DetailedTelegramCalendar(calendar_id=2,
-                                              min_date=CityInfoState.arrival_date + timedelta(days=1)).build()
+                                              ).build()
     bot.send_message(message.chat.id,
                      f"Выберите {MY_STEP[step]}",
                      reply_markup=calendar)
@@ -59,8 +60,8 @@ def cal_departure_data(call):
         bot.edit_message_text(f"Вы выбрали {result}",
                               call.message.chat.id,
                               call.message.message_id)
-        with bot.retrieve_data(call.from_user.id, call.chat.id) as data:
+        with bot.retrieve_data(call.from_user.id, call.message.chat.id) as data:
             data['departure_data'] = result
-            data['days_in_hotel'] = (CityInfoState.departure_date - CityInfoState.arrival_date).days
+            # data['days_in_hotel'] = (CityInfoState.departure_date - CityInfoState.arrival_date).days
         bot.set_state(str(call.message.chat.id), CityInfoState.currency)
         bot.register_next_step_handler(call.message, get_currency(call.message))
