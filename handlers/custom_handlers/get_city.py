@@ -48,7 +48,6 @@ def search(message: Message) -> None:
 
 @bot.callback_query_handler(func=lambda call: call.data.isdigit())
 def city_inline_callback(call) -> None:
-    print(call.data)
     for i in call.message.reply_markup.keyboard:
         for keyboard in i:
             if keyboard.callback_data == call.data:
@@ -91,26 +90,41 @@ def get_need_photo(message: Message) -> None:
 
 @bot.callback_query_handler(func=lambda call: call.data in ['нужны_фото', 'не_нужны_фото'])
 def need_photo_callback(call) -> None:
-    if call.message == 'нужны_фото':
-        with bot.retrieve_data(call.chat.id, call.message.chat.id) as data:
+    if call.data == 'нужны_фото':
+        with bot.retrieve_data(call.from_user.id, call.message.chat.id) as data:
             data['need_photo'] = call.data
+            print(data)
         bot.register_next_step_handler(call.message, get_count_photo(call.message))
     else:
-        bot.register_next_step_handler(call.message, ending_message(call.message))
+        bot.set_state(str(call.message.chat.id), CityInfoState.final_state)
 
 
 @bot.message_handler(state=CityInfoState.count_photo)
 def get_count_photo(message: Message) -> None:
-    bot.send_message(message.from_user.id, 'Сколько фотографий отображаем? ')
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        data['count_photo'] = message.text
-    bot.register_next_step_handler(message.chat.id, ending_message(message))
+    count_photo_buttons = InlineKeyboardMarkup()
+    count_photo_buttons.add(InlineKeyboardButton(text='1', callback_data='1_photo'))
+    count_photo_buttons.add(InlineKeyboardButton(text='2', callback_data='2_photo'))
+    count_photo_buttons.add(InlineKeyboardButton(text='3', callback_data='3_photo'))
+    count_photo_buttons.add(InlineKeyboardButton(text='4', callback_data='4_photo'))
+    count_photo_buttons.add(InlineKeyboardButton(text='5', callback_data='5_photo'))
+    count_photo_buttons.add(InlineKeyboardButton(text='6', callback_data='6_photo'))
+    bot.send_message(message.chat.id, 'Сколько фотографий отображаем? ', reply_markup=count_photo_buttons)
 
 
-@bot.message_handler(state=CityInfoState.count_photo)
-def ending_message(message: Message) -> None:
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+@bot.callback_query_handler(func=lambda call: call.data in ['1_photo', '2_photo', '3_photo',
+                                                            '4_photo', '5_photo', '6_photo'])
+def count_photo_callback(call) -> None:
+    bot.set_state(str(call.message.chat.id), CityInfoState.final_state)
+    with bot.retrieve_data(call.from_user.id, call.message.chat.id) as data:
+        data['count_photo'] = call.data
         print(data)
+
+
+@bot.message_handler(state=CityInfoState.final_state)
+def ending_message(message: Message) -> None:
+    with bot.retrieve_data(message.from_user.id) as data:
+        print(data)
+        data['count_photo'] = data['count_photo'][0]
         text = f'Спасибо за предоставленную информацию, ваш запрос: \n' \
            f'Город - {data["city"]}\n' \
            f'Дата заезда - {data["arrival_data"]}\n' \

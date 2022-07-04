@@ -9,3 +9,4 @@ class CityInfoState(StatesGroup):
     currency = State()
     need_photo = State()
     count_photo = State()
+    final_state = State()
