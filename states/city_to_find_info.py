@@ -1,12 +1,13 @@
 from telebot.handler_backends import State, StatesGroup
 
 
-class CityInfoState(StatesGroup):
-    city = State()
-    arrival_date = State()
-    departure_date = State()
-    days_in_hotel = State()
-    currency = State()
-    need_photo = State()
-    count_photo = State()
-    final_state = State()
+class CityInfoState:
+    city = None
+    destination_id = None
+    arrival_date = None
+    departure_date = None
+    days_in_hotel = None
+    currency = None
+    need_photo = None
+    count_photo = None
+    final_state = None
