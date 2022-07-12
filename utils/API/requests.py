@@ -10,6 +10,10 @@ def main_request(city_to_find):
         'x-rapidapi-host': "hotels4.p.rapidapi.com",
         'x-rapidapi-key': config.RAPID_API_KEY
     }
-    response = requests.request("GET", url, headers=headers, params=querystring)
-    with open('request_from_API.json', 'w') as file:
-        json.dump(response.text, file, sort_keys=True, indent=4)
+    try:
+        response = requests.request("GET", url, headers=headers, params=querystring, timeout=10)
+        if response.status_code == requests.codes.ok:
+            with open('request_from_API.json', 'w') as file:
+                json.dump(response.text, file, sort_keys=True, indent=4)
+    except Exception as err:
+        print(f'Ошибка {err}')

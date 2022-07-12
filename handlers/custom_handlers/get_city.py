@@ -35,7 +35,6 @@ def city_markup(city_to_find):
 
 
 def city(message):
-
     bot.send_message(message.from_user.id, 'Уточните, пожалуйста:', reply_markup=city_markup(message.text))
     bot.set_state(message.from_user.id, CityInfoState.arrival_date, message.chat.id)
 
@@ -54,10 +53,6 @@ def city_inline_callback(call) -> None:
                 CityInfoState.city = keyboard.text
     call.data = re.sub('id_', '', str(call.data))
     CityInfoState.destination_id = call.data
-    # with bot.retrieve_data(call.from_user.id, call.message.chat.id) as data:
-    #     data['city'] = keyboard.text
-    #     data['destination_id'] = call.data
-
     bot.register_next_step_handler(call.message, cal.get_arrival_data(call.message))
 
 
@@ -72,15 +67,27 @@ def get_currency(message: Message) -> None:
 
 @bot.callback_query_handler(func=lambda call: call.data in ['eur', 'rub', 'usd'])
 def get_currency_callback(call) -> None:
-    # with bot.retrieve_data(call.from_user.id, call.message.chat.id) as data:
-    #     data['currency'] = call.data
     CityInfoState.currency = call.data
+    bot.register_next_step_handler(call.message, get_criterion(call.message))
+
+
+@bot.message_handler()
+def get_criterion(message: Message) -> None:
+    criterion_buttons = InlineKeyboardMarkup()
+    criterion_buttons.add(InlineKeyboardButton(text='Low price', callback_data='low_price'))
+    criterion_buttons.add(InlineKeyboardButton(text='High price', callback_data='high_price'))
+    criterion_buttons.add(InlineKeyboardButton(text='Best deal', callback_data='best_deal'))
+    bot.send_message(message.chat.id, 'По каким критериям выбираем отель? ', reply_markup=criterion_buttons)
+
+
+@bot.callback_query_handler(func=lambda call: call.data in ['low_price', 'high_price', 'best_deal'])
+def criterion_callback(call) -> None:
+    CityInfoState.criterion = call.data
     bot.register_next_step_handler(call.message, get_need_photo(call.message))
 
 
 @bot.message_handler()
 def get_need_photo(message: Message) -> None:
-    bot.set_state(message.from_user.id, CityInfoState.need_photo, message.chat.id)
     is_need_photo_buttons = InlineKeyboardMarkup()
     is_need_photo_buttons.add(InlineKeyboardButton(text='Да', callback_data='нужны_фото'))
     is_need_photo_buttons.add(InlineKeyboardButton(text='Нет', callback_data='не_нужны_фото'))
@@ -89,10 +96,7 @@ def get_need_photo(message: Message) -> None:
 
 @bot.callback_query_handler(func=lambda call: call.data in ['нужны_фото', 'не_нужны_фото'])
 def need_photo_callback(call) -> None:
-    # bot.set_state(str(call.message.chat.id), CityInfoState.count_photo)
     if call.data == 'нужны_фото':
-        # with bot.retrieve_data(call.from_user.id, call.message.chat.id) as data:
-        #     data['need_photo'] = call.data
         CityInfoState.need_photo = call.data
         bot.register_next_step_handler(call.message, get_count_photo(call.message))
     else:
@@ -115,15 +119,11 @@ def get_count_photo(message: Message) -> None:
 @bot.callback_query_handler(func=lambda call: call.data in ['1_photo', '2_photo', '3_photo',
                                                             '4_photo', '5_photo', '6_photo'])
 def count_photo_callback(call) -> None:
-    # with bot.retrieve_data(call.from_user.id, call.message.chat.id) as data:
-    #     data['count_photo'] = call.data
     CityInfoState.count_photo = call.data
     bot.register_next_step_handler(call.message, ending_message(call.message))
 
 
 def ending_message(message: Message) -> None:
-    # with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-    #     data['count_photo'] = data['count_photo'][0]
     if CityInfoState.count_photo is None:
         CityInfoState.count_photo = 0
     else:
@@ -132,6 +132,7 @@ def ending_message(message: Message) -> None:
        f'Город - {CityInfoState.city}\n' \
        f'Дата заезда - {CityInfoState.arrival_date}\n' \
        f'Дата отъезда - {CityInfoState.departure_date}\n' \
+       f'Критерий выбора отеля - {CityInfoState.criterion}\n' \
        f'Валюта расчета - {CityInfoState.currency}\n' \
        f'Необходимость фотографий - {CityInfoState.need_photo}\n' \
        f'Количество фотографий - {CityInfoState.count_photo}'

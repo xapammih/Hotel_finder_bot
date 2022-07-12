@@ -31,10 +31,7 @@ def cal_arrival_data(call):
         bot.edit_message_text(f"Вы выбрали {result}",
                               call.message.chat.id,
                               call.message.message_id)
-        # with bot.retrieve_data(call.from_user.id, call.message.chat.id) as data:
-        #     data['arrival_data'] = result
         CityInfoState.arrival_date = result
-        # bot.set_state(str(call.message.chat.id), CityInfoState.departure_date)
         bot.register_next_step_handler(call.message, get_departure_data(call.message))
 
 
@@ -51,7 +48,7 @@ def get_departure_data(message: Message) -> None:
 
 @bot.callback_query_handler(func=DetailedTelegramCalendar.func(calendar_id=2))
 def cal_departure_data(call):
-    result, key, step = DetailedTelegramCalendar(calendar_id=2, min_date=date.today()).process(call.data)
+    result, key, step = DetailedTelegramCalendar(calendar_id=2, min_date=CityInfoState.arrival_date).process(call.data)
     if not result and key:
         bot.edit_message_text(f"Выберите {MY_STEP[step]}",
                               call.message.chat.id,
@@ -61,8 +58,5 @@ def cal_departure_data(call):
         bot.edit_message_text(f"Вы выбрали {result}",
                               call.message.chat.id,
                               call.message.message_id)
-        # with bot.retrieve_data(call.from_user.id, call.message.chat.id) as data:
-        #     data['departure_data'] = result
         CityInfoState.departure_date = result
-            # data['days_in_hotel'] = (CityInfoState.departure_date - CityInfoState.arrival_date).days
         bot.register_next_step_handler(call.message, get_currency(call.message))

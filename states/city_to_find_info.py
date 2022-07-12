@@ -7,6 +7,7 @@ class CityInfoState:
     arrival_date = None
     departure_date = None
     days_in_hotel = None
+    criterion = None
     currency = None
     need_photo = None
     count_photo = None
