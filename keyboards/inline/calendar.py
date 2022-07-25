@@ -10,7 +10,7 @@ from telebot.types import Message
 MY_STEP = {'y': 'год', 'm': 'месяц', 'd': 'день'}
 
 
-@bot.message_handler(state=CityInfoState.arrival_date)
+@bot.message_handler()
 def get_arrival_data(message: Message) -> None:
     bot.send_message(message.chat.id, 'Записал! Введите дату заезда: ')
     calendar, step = DetailedTelegramCalendar(calendar_id=1, min_date=date.today()).build()
@@ -35,8 +35,7 @@ def cal_arrival_data(call):
         bot.register_next_step_handler(call.message, get_departure_data(call.message))
 
 
-# min_date=CityInfoState.arrival_date + timedelta(days=1)
-@bot.message_handler(state=CityInfoState.departure_date)
+@bot.message_handler()
 def get_departure_data(message: Message) -> None:
     bot.send_message(message.chat.id, 'Записал! Теперь введите дату отъезда: ')
     calendar, step = DetailedTelegramCalendar(calendar_id=2,

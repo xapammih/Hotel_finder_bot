@@ -6,12 +6,12 @@ from states.city_to_find_info import CityInfoState
 from telebot.types import Message
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 import json
-import utils.API
+from utils.API.requests import request_city, request_hotels
 import re
 
 
 def city_founding():
-    with open('request_from_API.json', 'r', encoding='utf-8') as file:
+    with open('request_city_from_API.json', 'r', encoding='utf-8') as file:
         pattern = r'(?<="CITY_GROUP",).+?[\]]'
         result = json.load(file)
         find = re.search(pattern, result)
@@ -25,7 +25,7 @@ def city_founding():
 
 
 def city_markup(city_to_find):
-    utils.API.requests.main_request(city_to_find)
+    request_city(city_to_find)
     cities = city_founding()
     destinations = InlineKeyboardMarkup()
     for city in cities:
@@ -36,7 +36,6 @@ def city_markup(city_to_find):
 
 def city(message):
     bot.send_message(message.from_user.id, 'Уточните, пожалуйста:', reply_markup=city_markup(message.text))
-    bot.set_state(message.from_user.id, CityInfoState.arrival_date, message.chat.id)
 
 
 @bot.message_handler(commands=['search'])
@@ -59,13 +58,13 @@ def city_inline_callback(call) -> None:
 @bot.message_handler()
 def get_currency(message: Message) -> None:
     currency = InlineKeyboardMarkup()
-    currency.add(InlineKeyboardButton(text='RUB', callback_data='rub'))
-    currency.add(InlineKeyboardButton(text='USD', callback_data='usd'))
-    currency.add(InlineKeyboardButton(text='EUR', callback_data='eur'))
+    currency.add(InlineKeyboardButton(text='RUB', callback_data='RUB'))
+    currency.add(InlineKeyboardButton(text='USD', callback_data='USD'))
+    currency.add(InlineKeyboardButton(text='EUR', callback_data='EUR'))
     bot.send_message(message.chat.id, 'Выберите валюту рассчета', reply_markup=currency)
 
 
-@bot.callback_query_handler(func=lambda call: call.data in ['eur', 'rub', 'usd'])
+@bot.callback_query_handler(func=lambda call: call.data in ['EUR', 'RUB', 'USD'])
 def get_currency_callback(call) -> None:
     CityInfoState.currency = call.data
     bot.register_next_step_handler(call.message, get_criterion(call.message))
@@ -137,3 +136,5 @@ def ending_message(message: Message) -> None:
        f'Необходимость фотографий - {CityInfoState.need_photo}\n' \
        f'Количество фотографий - {CityInfoState.count_photo}'
     bot.send_message(message.chat.id, text)
+    bot.register_next_step_handler(message, request_hotels)
+
