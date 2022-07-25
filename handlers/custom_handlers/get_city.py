@@ -1,13 +1,12 @@
-from datetime import date
-
 import keyboards.inline.calendar as cal
 from loader import bot
 from states.city_to_find_info import CityInfoState
 from telebot.types import Message
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 import json
-from utils.API.requests import request_city, request_hotels
+from utils.API.requests import request_city
 import re
+from handlers.custom_handlers.show_hotels import show_hotels_func
 
 
 def city_founding():
@@ -136,5 +135,6 @@ def ending_message(message: Message) -> None:
        f'Необходимость фотографий - {CityInfoState.need_photo}\n' \
        f'Количество фотографий - {CityInfoState.count_photo}'
     bot.send_message(message.chat.id, text)
-    bot.register_next_step_handler(message, request_hotels)
+    bot.register_next_step_handler(message.chat.id, show_hotels_func(message))
+
 

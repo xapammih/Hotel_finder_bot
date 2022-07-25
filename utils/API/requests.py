@@ -35,6 +35,6 @@ def request_hotels():
         if response.status_code == requests.codes.ok:
             with open('request_hotels_from_API.json', 'w') as file:
                 json.dump(response.text, file, sort_keys=True, indent=4)
-                json.load(file)
+                json.loads(response.text)
     except Exception as err:
         print(f'Ошибка {err}')
