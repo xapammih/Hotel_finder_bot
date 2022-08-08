@@ -1,6 +1,6 @@
 from telegram_bot_calendar import DetailedTelegramCalendar
 from loader import bot
-from handlers.custom_handlers.get_city import get_currency
+from handlers.custom_handlers.get_city import *
 from states.city_to_find_info import CityInfoState
 from datetime import date, timedelta
 from telebot.types import ReplyKeyboardRemove
