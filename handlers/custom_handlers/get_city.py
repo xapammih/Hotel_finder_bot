@@ -37,10 +37,10 @@ def city(message):
     bot.send_message(message.from_user.id, 'Уточните, пожалуйста:', reply_markup=city_markup(message.text))
 
 
-@bot.message_handler(commands=['search'])
-def search(message: Message) -> None:
-    bot.send_message(message.from_user.id, f'Введите город, в какой вы бы хотели отправиться: ')
-    bot.register_next_step_handler(message, city)
+# @bot.message_handler(commands=['search'])
+# def search(message: Message) -> None:
+#     bot.send_message(message.from_user.id, f'Введите город, в какой вы бы хотели отправиться: ')
+#     bot.register_next_step_handler(message, city)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('id_'))
