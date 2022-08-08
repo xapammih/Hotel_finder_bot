@@ -1,6 +1,6 @@
 from telegram_bot_calendar import DetailedTelegramCalendar
 from loader import bot
-import handlers.custom_handlers.get_city as get_c
+# import handlers.custom_handlers.getcity as get_c
 from states.city_to_find_info import CityInfoState
 from datetime import date
 from telebot.types import Message
@@ -57,4 +57,4 @@ def cal_departure_data(call):
                               call.message.chat.id,
                               call.message.message_id)
         CityInfoState.departure_date = result
-        bot.register_next_step_handler(call.message, get_c.get_currency(call.message))
+
