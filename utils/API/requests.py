@@ -32,9 +32,10 @@ def request_hotels():
     }
     try:
         response = requests.request("GET", url, headers=headers, params=querystring, timeout=10)
+        # TODO выдернуть основное регуляркой
+        data = json.loads(response.text)
         if response.status_code == requests.codes.ok:
             with open('request_hotels_from_API.json', 'w') as file:
-                # json.dump(response.text, file, sort_keys=True, indent=4)
-                data = json.load(file)
+                json.dump(data, file, sort_keys=True, indent=4)
     except Exception as err:
         print(f'Ошибка {err}')

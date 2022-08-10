@@ -123,12 +123,17 @@ def ending_message(message: Message) -> None:
        f'Необходимость фотографий - {CityInfoState.need_photo}\n' \
        f'Количество фотографий - {CityInfoState.count_photo}'
     bot.send_message(message.chat.id, text)
-    bot.register_next_step_handler(message.chat.id, show_hotels_func)
+    bot.register_next_step_handler(message, show_hotels_func(message))
 
 
 @bot.message_handler()
 def show_hotels_func(message: Message) -> None:
+    # TODO переместить реквест в функцию выше, сделать словарь типа {1:[name, price, etc]} + разобраться с лишними выводами в телеге
     request_hotels()
+    hotels_list = []
+    with open('request_hotels_from_API.json', 'r') as file:
+        for i in range(3):
+            pass
 
 
 
