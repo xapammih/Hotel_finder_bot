@@ -11,10 +11,10 @@ if __name__ == "__main__":
         bot.polling(none_stop=True)
     except ConnectionError as e:
         print('Ошибка соединения: ', e)
-    except Exception as r:
-        print("Непридвиденная ошибка: ", r)
-    finally:
-        print("Здесь всё закончилось")
+    # except Exception as r:
+    #     print("Непридвиденная ошибка: ", r)
+    # finally:
+    #     print("Здесь всё закончилось")
 
 
 

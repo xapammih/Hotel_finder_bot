@@ -7,6 +7,5 @@ import json
 import re
 
 
-@bot.message_handler()
-def show_hotels_func(message: Message) -> None:
-    request_hotels()
+
+

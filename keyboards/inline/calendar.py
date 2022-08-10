@@ -1,10 +1,9 @@
 from telegram_bot_calendar import DetailedTelegramCalendar
 from loader import bot
-# import handlers.custom_handlers.getcity as get_c
 from states.city_to_find_info import CityInfoState
 from datetime import date
 from telebot.types import Message
-
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 MY_STEP = {'y': 'год', 'm': 'месяц', 'd': 'день'}
 
@@ -57,4 +56,9 @@ def cal_departure_data(call):
                               call.message.chat.id,
                               call.message.message_id)
         CityInfoState.departure_date = result
+        currency = InlineKeyboardMarkup()
+        currency.add(InlineKeyboardButton(text='RUB', callback_data='RUB'))
+        currency.add(InlineKeyboardButton(text='USD', callback_data='USD'))
+        currency.add(InlineKeyboardButton(text='EUR', callback_data='EUR'))
+        bot.send_message(call.from_user.id, 'Выберите валюту рассчета', reply_markup=currency)
 
