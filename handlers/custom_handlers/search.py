@@ -24,7 +24,7 @@ def city_founding():
         suggestions = json.loads(f"{{{find[0]}}}")
     cities = list()
     for dest_id in suggestions['entities']:
-        clear_destination = dest_id.get('name')
+        clear_destination = re.sub(r'<.*?>', '', dest_id['caption'])
         cities.append({'city_name': clear_destination, 'destination_id': dest_id['destinationId']})
     return cities
 
@@ -123,17 +123,38 @@ def ending_message(message: Message) -> None:
        f'Необходимость фотографий - {CityInfoState.need_photo}\n' \
        f'Количество фотографий - {CityInfoState.count_photo}'
     bot.send_message(message.chat.id, text)
-    bot.register_next_step_handler(message, show_hotels_func(message))
-
-
-@bot.message_handler()
-def show_hotels_func(message: Message) -> None:
-    # TODO переместить реквест в функцию выше, сделать словарь типа {1:[name, price, etc]} + разобраться с лишними выводами в телеге
     request_hotels()
+    bot.register_next_step_handler(message, show_hotels(message))
+
+
+def show_hotels(message: Message) -> None:
+    if CityInfoState.criterion == 'lowprice':
+        bot.send_message(message.from_user.id, search_lowprice())
+    elif CityInfoState.criterion == 'highprice':
+        pass
+    elif CityInfoState.criterion == 'bestdeal':
+        pass
+
+
+def search_lowprice():
     hotels_list = []
-    with open('request_hotels_from_API.json', 'r') as file:
-        for i in range(3):
-            pass
+    with open('request_hotels_from_API.json', 'r', encoding='utf-8') as file:
+        pattern = r'(?<=,)"results":.+?(?=,"pagination)'
+        result = json.load(file)
+        price_find = re.search(pattern, result)
+        if price_find:
+            request_hotels = json.loads(f"{{{price_find[0]}}}")
+            try:
+                for i in request_hotels['results']:
+                    hotels_list.append({'id': i['id'], 'name': i['name'], 'starrating': i['starRating'], 'address': i.get('address', []).get('streetAddress'),
+                                        'distance': i.get('landmarks', [])[0].get('distance', ''),
+                                        'price': i.get('ratePlan', []).get('price', []).get('exactCurrent', 0)})
+                print(hotels_list)
+                return hotels_list
+
+            except AttributeError:
+                hotels_list.append(dict())
+                return hotels_list
 
 
 
