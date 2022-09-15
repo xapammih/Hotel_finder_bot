@@ -128,11 +128,14 @@ def ending_message(message: Message) -> None:
 
 
 def show_hotels(message: Message) -> None:
-    if CityInfoState.criterion == 'lowprice':
-        bot.send_message(message.from_user.id, search_lowprice())
-    elif CityInfoState.criterion == 'highprice':
+    if CityInfoState.criterion == 'low_price':
+        hotels_to_show = search_lowprice()
+        if len(hotels_to_show) == 0:
+            bot.send_message(message.chat.id, 'Ничего не найдено.')
+        bot.send_message(message.chat.id, hotels_to_show)
+    elif CityInfoState.criterion == 'high_price':
         pass
-    elif CityInfoState.criterion == 'bestdeal':
+    elif CityInfoState.criterion == 'best_deal':
         pass
 
 
