@@ -7,6 +7,7 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from states.city_to_find_info import CityInfoState
 import keyboards
 from utils.API.requests import request_hotels
+from config_data import config
 
 
 @bot.message_handler(commands=['search'])
@@ -63,9 +64,9 @@ def get_currency(call) -> None:
 @bot.message_handler()
 def get_criterion(message: Message) -> None:
     criterion_buttons = InlineKeyboardMarkup()
-    criterion_buttons.add(InlineKeyboardButton(text='Low price', callback_data='low_price'))
-    criterion_buttons.add(InlineKeyboardButton(text='High price', callback_data='high_price'))
-    criterion_buttons.add(InlineKeyboardButton(text='Best deal', callback_data='best_deal'))
+    criterion_buttons.add(InlineKeyboardButton(text='Минимальная цена', callback_data='low_price'))
+    criterion_buttons.add(InlineKeyboardButton(text='Максимальная цена', callback_data='high_price'))
+    criterion_buttons.add(InlineKeyboardButton(text='Лучшее предложение!', callback_data='best_deal'))
     bot.send_message(message.chat.id, 'По каким критериям выбираем отель? ', reply_markup=criterion_buttons)
 
 
@@ -121,7 +122,8 @@ def ending_message(message: Message) -> None:
        f'Критерий выбора отеля - {CityInfoState.criterion}\n' \
        f'Валюта расчета - {CityInfoState.currency}\n' \
        f'Необходимость фотографий - {CityInfoState.need_photo}\n' \
-       f'Количество фотографий - {CityInfoState.count_photo}'
+       f'Количество фотографий - {CityInfoState.count_photo}\n' \
+       f'Количество дней в отеле - {CityInfoState.days_in_hotel}'
     bot.send_message(message.chat.id, text)
     request_hotels()
     bot.register_next_step_handler(message, show_hotels(message))
@@ -129,17 +131,32 @@ def ending_message(message: Message) -> None:
 
 def show_hotels(message: Message) -> None:
     if CityInfoState.criterion == 'low_price':
-        hotels_to_show = search_lowprice()
+        hotels_to_show = sorted(search_lowprice_highprice(), key=lambda x: x['price'])
         if len(hotels_to_show) == 0:
             bot.send_message(message.chat.id, 'Ничего не найдено.')
-        bot.send_message(message.chat.id, hotels_to_show)
+        bot.send_message(message.chat.id, 'Вот что мне удалось найти по вашему запросу:\n')
+        for i in range(config.max_hotels_count):
+            bot.send_message(message.chat.id, sending_hotels_message(hotels_to_show, i))
     elif CityInfoState.criterion == 'high_price':
-        pass
+        hotels_to_show = sorted(search_lowprice_highprice(), key=lambda x: x['price'], reverse=True)
+        for i in range(config.max_hotels_count):
+            bot.send_message(message.chat.id, sending_hotels_message(hotels_to_show, i))
     elif CityInfoState.criterion == 'best_deal':
         pass
 
 
-def search_lowprice():
+def sending_hotels_message(hotels: list, index: int) -> str:
+    full_price = round((hotels[index]['price']) * CityInfoState.days_in_hotel)
+    text = f"🏨Наименование: {hotels[index]['name']}\n" \
+           f"⭐Рейтинг: {hotels[index]['starrating']}\n" \
+           f"🌎Адрес: {hotels[index]['address']}\n" \
+           f"💴Цена за сутки: {hotels[index]['price']} {CityInfoState.currency}\n" \
+           f"💰Цена за {CityInfoState.days_in_hotel} суток: {full_price} {CityInfoState.currency}\n" \
+           f"➡️Расстояние до центра: {hotels[index]['distance']}"
+    return text
+
+
+def search_lowprice_highprice():
     hotels_list = []
     with open('request_hotels_from_API.json', 'r', encoding='utf-8') as file:
         pattern = r'(?<=,)"results":.+?(?=,"pagination)'
