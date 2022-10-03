@@ -1,6 +1,3 @@
-from telebot.handler_backends import State, StatesGroup
-
-
 class CityInfoState:
     city = None
     destination_id = None
@@ -12,3 +9,7 @@ class CityInfoState:
     need_photo = None
     count_photo = None
     final_state = None
+    hotels_count = None
+    distance_from_center = None
+    max_cost = None
+    min_cost = None

@@ -16,7 +16,7 @@ def search(message: Message) -> None:
     bot.register_next_step_handler(message, city)
 
 
-def city_founding():
+def city_founding() -> list:
     with open('request_city_from_API.json', 'r', encoding='utf-8') as file:
         pattern = r'(?<="CITY_GROUP",).+?[\]]'
         result = json.load(file)
@@ -30,7 +30,7 @@ def city_founding():
     return cities
 
 
-def city_markup(city_to_find):
+def city_markup(city_to_find: str):
     request_city(city_to_find)
     cities = city_founding()
     destinations = InlineKeyboardMarkup()
@@ -126,6 +126,8 @@ def ending_message(message: Message) -> None:
        f'Количество дней в отеле - {CityInfoState.days_in_hotel}'
     bot.send_message(message.chat.id, text)
     request_hotels()
+    if CityInfoState.criterion == 'best_deal':
+        bot.register_next_step_handler(message, bestdeal_info(message))
     bot.register_next_step_handler(message, show_hotels(message))
 
 
@@ -139,10 +141,18 @@ def show_hotels(message: Message) -> None:
             bot.send_message(message.chat.id, sending_hotels_message(hotels_to_show, i))
     elif CityInfoState.criterion == 'high_price':
         hotels_to_show = sorted(search_lowprice_highprice(), key=lambda x: x['price'], reverse=True)
+        if len(hotels_to_show) == 0:
+            bot.send_message(message.chat.id, 'Ничего не найдено.')
+        bot.send_message(message.chat.id, 'Вот что мне удалось найти по вашему запросу:\n')
         for i in range(config.max_hotels_count):
             bot.send_message(message.chat.id, sending_hotels_message(hotels_to_show, i))
     elif CityInfoState.criterion == 'best_deal':
-        pass
+        hotels_to_show = sorted(search_bestdeal(), key=lambda x: x['distance'])
+        if len(hotels_to_show) == 0:
+            bot.send_message(message.chat.id, 'Ничего не найдено.')
+        bot.send_message(message.chat.id, 'Вот что мне удалось найти по вашему запросу:\n')
+        for i in range(config.max_hotels_count):
+            bot.send_message(message.chat.id, sending_hotels_message(hotels_to_show, i))
 
 
 def sending_hotels_message(hotels: list, index: int) -> str:
@@ -156,7 +166,7 @@ def sending_hotels_message(hotels: list, index: int) -> str:
     return text
 
 
-def search_lowprice_highprice():
+def search_lowprice_highprice() -> list:
     hotels_list = []
     with open('request_hotels_from_API.json', 'r', encoding='utf-8') as file:
         pattern = r'(?<=,)"results":.+?(?=,"pagination)'
@@ -166,7 +176,8 @@ def search_lowprice_highprice():
             request_hotels = json.loads(f"{{{price_find[0]}}}")
             try:
                 for i in request_hotels['results']:
-                    hotels_list.append({'id': i['id'], 'name': i['name'], 'starrating': i['starRating'], 'address': i.get('address', []).get('streetAddress'),
+                    hotels_list.append({'id': i['id'], 'name': i['name'], 'starrating': i['starRating'],
+                                        'address': i.get('address', []).get('streetAddress'),
                                         'distance': i.get('landmarks', [])[0].get('distance', ''),
                                         'price': i.get('ratePlan', []).get('price', []).get('exactCurrent', 0)})
                 print(hotels_list)
@@ -177,6 +188,40 @@ def search_lowprice_highprice():
                 return hotels_list
 
 
+@bot.message_handler()
+def bestdeal_info(message: Message):
+    bot.send_message(message.chat.id, 'Введите диапазон цен через дефис')
+    price = message.text.split('-')
+    CityInfoState.min_cost = price[0]
+    CityInfoState.max_cost = price[1]
+    bot.send_message(message.from_user.id, 'Введите максимальное расстояние от центра')
+    CityInfoState.distance_from_center = message.text
+    bot.register_next_step_handler(message, show_hotels(message))
+
+
+def search_bestdeal():
+    hotels_list_bestdeal = []
+    with open('request_hotels_from_API.json', 'r', encoding='utf-8') as file:
+        pattern = r'(?<=,)"results":.+?(?=,"pagination)'
+        result = json.load(file)
+        price_find = re.search(pattern, result)
+        if price_find:
+            request_hotels = json.loads(f"{{{price_find[0]}}}")
+            try:
+                for i in request_hotels['results']:
+                    current_cost = i.get('ratePlan', []).get('price', []).get('exactCurrent', 0)
+                    current_dist = i.get('landmarks', [])[0].get('distance', '')
+                    if CityInfoState.min_cost < current_cost < CityInfoState.max_cost and \
+                        CityInfoState.distance_from_center > current_dist:
+                        hotels_list_bestdeal.append({'id': i['id'], 'name': i['name'], 'starrating': i['starRating'],
+                                            'address': i.get('address', []).get('streetAddress'),
+                                            'distance': i.get('landmarks', [])[0].get('distance', ''),
+                                            'price': i.get('ratePlan', []).get('price', []).get('exactCurrent', 0)})
+
+                return hotels_list_bestdeal
+            except AttributeError:
+                hotels_list_bestdeal.append(dict())
+                return hotels_list_bestdeal
 
 
 

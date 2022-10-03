@@ -1,6 +1,6 @@
 from loader import bot
 import keyboards.inline.calendar as cal
-from states.city_to_find_info import CityInfoState
+from dataclass.city_to_find_info import CityInfoState
 from telebot.types import Message
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 import json
