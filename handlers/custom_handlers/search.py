@@ -1,12 +1,11 @@
 from loader import bot
 from telebot.types import Message
 import json
-from utils.API.requests import request_city
+from utils.API.requests import request_city, request_hotels
 import re
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from states.city_to_find_info import CityInfoState
 import keyboards
-from utils.API.requests import request_hotels
 from config_data import config
 
 
@@ -92,6 +91,8 @@ def need_photo_callback(call) -> None:
     else:
         CityInfoState.need_photo = 'нет'
         CityInfoState.count_photo = 0
+        if CityInfoState.criterion == 'best_deal':
+            bot.register_next_step_handler(call.message, bestdeal_price_info)
         bot.register_next_step_handler(call.message, ending_message(call.message))
 
 
@@ -111,7 +112,24 @@ def get_count_photo(message: Message) -> None:
                                                             '4_photo', '5_photo', '6_photo'])
 def count_photo_callback(call) -> None:
     CityInfoState.count_photo = call.data[0]
-    bot.register_next_step_handler(call.message, ending_message(call.message))
+    if CityInfoState.criterion == 'best_deal':
+        bot.send_message(call.message.chat.id, 'Введите максимальную цену за сутки: ')
+        bot.register_next_step_handler(call.message, bestdeal_price_info)
+    else:
+        bot.register_next_step_handler(call.message, ending_message(call.message))
+
+
+@bot.message_handler()
+def bestdeal_price_info(message: Message):
+    CityInfoState.max_cost = message.text
+    bot.send_message(message.from_user.id, 'Введите максимальное расстояние от центра: ')
+    bot.register_next_step_handler(message, bestdeal_distance_info(message))
+
+
+@bot.message_handler()
+def bestdeal_distance_info(message: Message):
+    CityInfoState.max_cost = message.text
+    bot.register_next_step_handler(message, ending_message)
 
 
 def ending_message(message: Message) -> None:
@@ -126,8 +144,6 @@ def ending_message(message: Message) -> None:
        f'Количество дней в отеле - {CityInfoState.days_in_hotel}'
     bot.send_message(message.chat.id, text)
     request_hotels()
-    if CityInfoState.criterion == 'best_deal':
-        bot.register_next_step_handler(message, bestdeal_info(message))
     bot.register_next_step_handler(message, show_hotels(message))
 
 
@@ -147,7 +163,7 @@ def show_hotels(message: Message) -> None:
         for i in range(config.max_hotels_count):
             bot.send_message(message.chat.id, sending_hotels_message(hotels_to_show, i))
     elif CityInfoState.criterion == 'best_deal':
-        hotels_to_show = sorted(search_bestdeal(), key=lambda x: x['distance'])
+        hotels_to_show = sorted(search_bestdeal(message), key=lambda x: x['distance'])
         if len(hotels_to_show) == 0:
             bot.send_message(message.chat.id, 'Ничего не найдено.')
         bot.send_message(message.chat.id, 'Вот что мне удалось найти по вашему запросу:\n')
@@ -188,18 +204,8 @@ def search_lowprice_highprice() -> list:
                 return hotels_list
 
 
-@bot.message_handler()
-def bestdeal_info(message: Message):
-    bot.send_message(message.chat.id, 'Введите диапазон цен через дефис')
-    price = message.text.split('-')
-    CityInfoState.min_cost = price[0]
-    CityInfoState.max_cost = price[1]
-    bot.send_message(message.from_user.id, 'Введите максимальное расстояние от центра')
+def search_bestdeal(message: Message):
     CityInfoState.distance_from_center = message.text
-    bot.register_next_step_handler(message, show_hotels(message))
-
-
-def search_bestdeal():
     hotels_list_bestdeal = []
     with open('request_hotels_from_API.json', 'r', encoding='utf-8') as file:
         pattern = r'(?<=,)"results":.+?(?=,"pagination)'
@@ -211,7 +217,7 @@ def search_bestdeal():
                 for i in request_hotels['results']:
                     current_cost = i.get('ratePlan', []).get('price', []).get('exactCurrent', 0)
                     current_dist = i.get('landmarks', [])[0].get('distance', '')
-                    if CityInfoState.min_cost < current_cost < CityInfoState.max_cost and \
+                    if current_cost < CityInfoState.max_cost and \
                         CityInfoState.distance_from_center > current_dist:
                         hotels_list_bestdeal.append({'id': i['id'], 'name': i['name'], 'starrating': i['starRating'],
                                             'address': i.get('address', []).get('streetAddress'),
