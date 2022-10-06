@@ -56,8 +56,8 @@ def cal_departure_data(call):
         bot.edit_message_text(f"Вы выбрали {result}",
                               call.message.chat.id,
                               call.message.message_id)
-        CityInfoState.data[call.message.chat.id]['departure_data'] = result
-        CityInfoState.data[call.message.chat.id]['days_in_hotel'] = (CityInfoState.data[call.message.chat.id]['departure_data'] -
+        CityInfoState.data[call.message.chat.id]['departure_date'] = result
+        CityInfoState.data[call.message.chat.id]['days_in_hotel'] = (CityInfoState.data[call.message.chat.id]['departure_date'] -
                                                                      CityInfoState.data[call.message.chat.id]['arrival_date']).days
         currency = InlineKeyboardMarkup()
         currency.add(InlineKeyboardButton(text='RUB', callback_data='RUB'))

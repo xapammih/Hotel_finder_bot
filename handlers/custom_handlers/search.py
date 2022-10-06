@@ -92,6 +92,7 @@ def need_photo_callback(call) -> None:
         CityInfoState.data[call.message.chat.id]['need_photo'] = 'нет'
         CityInfoState.data[call.message.chat.id]['count_photo'] = 0
         if CityInfoState.data[call.message.chat.id]['criterion'] == 'best_deal':
+            bot.send_message(call.message.chat.id, 'Введите максимальную цену за сутки: ')
             bot.register_next_step_handler(call.message, bestdeal_price_info(call.message))
         else:
             bot.register_next_step_handler(call.message, ending_message(call.message))
@@ -114,7 +115,6 @@ def get_count_photo(message: Message) -> None:
 def count_photo_callback(call) -> None:
     CityInfoState.data[call.message.chat.id]['count_photo'] = call.data[0]
     if CityInfoState.data[call.message.chat.id]['criterion'] == 'best_deal':
-        bot.send_message(call.message.chat.id, 'Введите максимальную цену за сутки: ')
         bot.register_next_step_handler(call.message, bestdeal_price_info(call.message))
     else:
         bot.register_next_step_handler(call.message, ending_message(call.message))
@@ -122,13 +122,17 @@ def count_photo_callback(call) -> None:
 
 @bot.message_handler()
 def bestdeal_price_info(message: Message):
+    # if message.text.isdigit():
     CityInfoState.data[message.chat.id]['max_cost'] = message.text
-    bot.send_message(message.chat.id, 'Введите максимальное расстояние от центра: ')
-    bot.register_next_step_handler(message, bestdeal_distance_info(message))
+    # else:
+    #     bot.send_message(message.chat.id, 'Неверный ввод, повторите: ')
+    #     return
+    bot.register_next_step_handler(message.from_user.id, bestdeal_distance_info(message))
 
 
 @bot.message_handler()
 def bestdeal_distance_info(message: Message):
+    bot.send_message(message.chat.id, 'Введите максимальное расстояние от центра: ')
     CityInfoState.data[message.chat.id]['distance_from_center'] = message.text
     bot.register_next_step_handler(message, ending_message(message))
 
@@ -206,7 +210,6 @@ def search_lowprice_highprice() -> list:
 
 
 def search_bestdeal(message: Message):
-    # CityInfoState.distance_from_center = message.text
     hotels_list_bestdeal = []
     with open('request_hotels_from_API.json', 'r', encoding='utf-8') as file:
         pattern = r'(?<=,)"results":.+?(?=,"pagination)'
@@ -218,8 +221,8 @@ def search_bestdeal(message: Message):
                 for i in request_hotels['results']:
                     current_cost = i.get('ratePlan', []).get('price', []).get('exactCurrent', 0)
                     current_dist = i.get('landmarks', [])[0].get('distance', '')
-                    if current_cost < CityInfoState.data[message.chat.id]['max_cost'] and \
-                        CityInfoState.data[message.chat.id]['distance_from_center'] > current_dist:
+                    if current_cost < float(CityInfoState.data[message.chat.id]['max_cost']) and \
+                        float(CityInfoState.data[message.chat.id]['distance_from_center']) > current_dist:
                         hotels_list_bestdeal.append({'id': i['id'], 'name': i['name'], 'starrating': i['starRating'],
                                             'address': i.get('address', []).get('streetAddress'),
                                             'distance': i.get('landmarks', [])[0].get('distance', ''),
