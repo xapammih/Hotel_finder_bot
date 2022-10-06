@@ -92,7 +92,6 @@ def need_photo_callback(call) -> None:
         CityInfoState.data[call.message.chat.id]['need_photo'] = 'нет'
         CityInfoState.data[call.message.chat.id]['count_photo'] = 0
         if CityInfoState.data[call.message.chat.id]['criterion'] == 'best_deal':
-            bot.send_message(call.message.chat.id, 'Введите максимальную цену за сутки: ')
             bot.register_next_step_handler(call.message, bestdeal_price_info(call.message))
         else:
             bot.register_next_step_handler(call.message, ending_message(call.message))
@@ -122,17 +121,24 @@ def count_photo_callback(call) -> None:
 
 @bot.message_handler()
 def bestdeal_price_info(message: Message):
-    # if message.text.isdigit():
+    bot.send_message(message.chat.id, 'Введите максимальную цену за сутки: ')
+    bot.register_next_step_handler(message, bestdeal_price_callback(message))
+
+
+@bot.message_handler()
+def bestdeal_price_callback(message: Message):
+    bot.send_message(message.chat.id, 'Что-то')
     CityInfoState.data[message.chat.id]['max_cost'] = message.text
-    # else:
-    #     bot.send_message(message.chat.id, 'Неверный ввод, повторите: ')
-    #     return
-    bot.register_next_step_handler(message.from_user.id, bestdeal_distance_info(message))
+    bot.register_next_step_handler(message, bestdeal_distance_info(message))
 
 
 @bot.message_handler()
 def bestdeal_distance_info(message: Message):
     bot.send_message(message.chat.id, 'Введите максимальное расстояние от центра: ')
+    bot.register_next_step_handler(message, bestdeal_distance_callback(message))
+
+
+def bestdeal_distance_callback(message: Message):
     CityInfoState.data[message.chat.id]['distance_from_center'] = message.text
     bot.register_next_step_handler(message, ending_message(message))
 
