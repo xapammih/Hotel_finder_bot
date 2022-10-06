@@ -2,6 +2,7 @@ import json
 import requests
 from config_data import config
 from states.city_to_find_info import CityInfoState
+from telebot.types import Message
 
 
 def request_city(city_to_find):
@@ -20,12 +21,12 @@ def request_city(city_to_find):
         print(f'Ошибка {err}')
 
 
-def request_hotels():
+def request_hotels(message: Message):
     url = "https://hotels4.p.rapidapi.com/properties/list"
-    querystring = {"destinationId": CityInfoState.destination_id, "pageNumber": "1",
-                   "pageSize": "25", "checkIn": CityInfoState.arrival_date,
-                   "checkOut": CityInfoState.departure_date, "adults1": "1", "sortOrder": "PRICE",
-                   "locale": "en_US", "currency": CityInfoState.currency}
+    querystring = {"destinationId": CityInfoState.data[message.chat.id]["destination_id"], "pageNumber": "1",
+                   "pageSize": "25", "checkIn": CityInfoState.data[message.chat.id]["arrival_date"],
+                   "checkOut": CityInfoState.data[message.chat.id]["departure_date"], "adults1": "1", "sortOrder": "PRICE",
+                   "locale": "en_US", "currency": CityInfoState.data[message.chat.id]["currency"]}
     headers = {
         'x-rapidapi-host': "hotels4.p.rapidapi.com",
         'x-rapidapi-key': config.RAPID_API_KEY

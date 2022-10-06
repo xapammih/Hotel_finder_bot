@@ -29,7 +29,7 @@ def cal_arrival_data(call):
         bot.edit_message_text(f"Вы выбрали {result}",
                               call.message.chat.id,
                               call.message.message_id)
-        CityInfoState.arrival_date = result
+        CityInfoState.data[call.message.chat.id]['arrival_date'] = result
         bot.register_next_step_handler(call.message, get_departure_data(call.message))
 
 
@@ -45,7 +45,8 @@ def get_departure_data(message: Message) -> None:
 
 @bot.callback_query_handler(func=DetailedTelegramCalendar.func(calendar_id=2))
 def cal_departure_data(call):
-    result, key, step = DetailedTelegramCalendar(calendar_id=2, min_date=CityInfoState.arrival_date + timedelta(days=1)).process(call.data)
+    result, key, step = DetailedTelegramCalendar(calendar_id=2, min_date=CityInfoState.data[call.message.chat.id]['arrival_date']
+                                                                         + timedelta(days=1)).process(call.data)
     if not result and key:
         bot.edit_message_text(f"Выберите {MY_STEP[step]}",
                               call.message.chat.id,
@@ -55,8 +56,9 @@ def cal_departure_data(call):
         bot.edit_message_text(f"Вы выбрали {result}",
                               call.message.chat.id,
                               call.message.message_id)
-        CityInfoState.departure_date = result
-        CityInfoState.days_in_hotel = (CityInfoState.departure_date - CityInfoState.arrival_date).days
+        CityInfoState.data[call.message.chat.id]['departure_data'] = result
+        CityInfoState.data[call.message.chat.id]['days_in_hotel'] = (CityInfoState.data[call.message.chat.id]['departure_data'] -
+                                                                     CityInfoState.data[call.message.chat.id]['arrival_date']).days
         currency = InlineKeyboardMarkup()
         currency.add(InlineKeyboardButton(text='RUB', callback_data='RUB'))
         currency.add(InlineKeyboardButton(text='USD', callback_data='USD'))
