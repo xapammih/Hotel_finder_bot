@@ -5,12 +5,17 @@ from utils.API.requests import request_city, request_hotels
 import re
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from states.city_to_find_info import CityInfoState
-import keyboards
+from keyboards.inline import dialog_keyboards, calendar
 from config_data import config
 
 
 @bot.message_handler(commands=['search'])
 def search(message: Message) -> None:
+    print(message.chat.id)
+    CityInfoState.data[message.chat.id] = {'city': None, 'destination_id': None, 'arrival_date': None, 'departure_date': None,
+                        'days_in_hotel': None, 'criterion': None, 'currency': None, 'need_photo': None,
+                        'count_photo': None, 'hotels_count': None, 'distance_from_center': None,
+                        'max_cost': None, 'min_cost': None}
     bot.send_message(message.from_user.id, f'Введите город, в какой вы бы хотели отправиться: ')
     bot.register_next_step_handler(message, city)
 
@@ -49,64 +54,54 @@ def city_inline_callback(call) -> None:
         for keyboard in i:
             if keyboard.callback_data == call.data:
                 CityInfoState.data[call.message.chat.id]['city'] = keyboard.text
-    call.data = re.sub('id_', '', str(call.data))
+    call.data = call.data[3:]
     CityInfoState.destination_id = call.data
-    bot.register_next_step_handler(call.message, keyboards.inline.calendar.get_arrival_data(call.message))
+    bot.send_message(call.message.chat.id, 'Записал! Введите дату заезда: ')
+    calendar.get_arrival_data(call.message)
+    #TODO вызвать второй каледнарь так же, как первый, разобраться с дальнейшими шагами
+    bot.set_state(user_id=call.from_user.id, state=CityInfoState.arrival_date, chat_id=call.message.chat.id)
 
 
 @bot.callback_query_handler(func=lambda call: call.data in ['EUR', 'RUB', 'USD'])
 def get_currency(call) -> None:
     CityInfoState.data[call.message.chat.id]['currency'] = call.data
-    bot.register_next_step_handler(call.message, get_criterion(call.message))
+    bot.set_state(user_id=call.from_user.id, state=CityInfoState.criterion, chat_id=call.message.chat.id)
+    bot.send_message(call.message.chat.id, 'По каким критериям выбираем отель? ',
+                     reply_markup=dialog_keyboards.get_criterion_keyboard())
 
-
-@bot.message_handler()
-def get_criterion(message: Message) -> None:
-    criterion_buttons = InlineKeyboardMarkup()
-    criterion_buttons.add(InlineKeyboardButton(text='Минимальная цена', callback_data='low_price'))
-    criterion_buttons.add(InlineKeyboardButton(text='Максимальная цена', callback_data='high_price'))
-    criterion_buttons.add(InlineKeyboardButton(text='Лучшее предложение!', callback_data='best_deal'))
-    bot.send_message(message.chat.id, 'По каким критериям выбираем отель? ', reply_markup=criterion_buttons)
+# @bot.message_handler(state=CityInfoState.criterion)
+# def get_criterion(message: Message) -> None:
 
 
 @bot.callback_query_handler(func=lambda call: call.data in ['low_price', 'high_price', 'best_deal'])
 def criterion_callback(call) -> None:
     CityInfoState.data[call.message.chat.id]['criterion'] = call.data
-    bot.register_next_step_handler(call.message, get_need_photo(call.message))
+    bot.set_state(user_id=call.from_user.id, state=CityInfoState.need_photo, chat_id=call.message.chat.id)
 
 
-@bot.message_handler()
+@bot.message_handler(state=CityInfoState.need_photo)
 def get_need_photo(message: Message) -> None:
-    is_need_photo_buttons = InlineKeyboardMarkup()
-    is_need_photo_buttons.add(InlineKeyboardButton(text='Да', callback_data='нужны_фото'))
-    is_need_photo_buttons.add(InlineKeyboardButton(text='Нет', callback_data='не_нужны_фото'))
-    bot.send_message(message.chat.id, 'Нужны ли фото отеля?', reply_markup=is_need_photo_buttons)
+    bot.send_message(message.chat.id, 'Нужны ли фото отеля?', reply_markup=dialog_keyboards.need_photos_keyboard())
 
 
 @bot.callback_query_handler(func=lambda call: call.data in ['нужны_фото', 'не_нужны_фото'])
 def need_photo_callback(call) -> None:
     if call.data == 'нужны_фото':
         CityInfoState.data[call.message.chat.id]['need_photo'] = call.data
-        bot.register_next_step_handler(call.message, get_count_photo(call.message))
+        bot.set_state(user_id=call.from_user.id, state=CityInfoState.count_photo, chat_id=call.message.chat.id)
     else:
         CityInfoState.data[call.message.chat.id]['need_photo'] = 'нет'
         CityInfoState.data[call.message.chat.id]['count_photo'] = 0
         if CityInfoState.data[call.message.chat.id]['criterion'] == 'best_deal':
-            bot.register_next_step_handler(call.message, bestdeal_price_info(call.message))
+            bot.set_state(user_id=call.from_user.id, state=CityInfoState.max_cost, chat_id=call.message.chat.id)
         else:
             bot.register_next_step_handler(call.message, ending_message(call.message))
 
 
-@bot.message_handler()
+@bot.message_handler(state=CityInfoState.count_photo)
 def get_count_photo(message: Message) -> None:
-    count_photo_buttons = InlineKeyboardMarkup()
-    count_photo_buttons.add(InlineKeyboardButton(text='1', callback_data='1_photo'))
-    count_photo_buttons.add(InlineKeyboardButton(text='2', callback_data='2_photo'))
-    count_photo_buttons.add(InlineKeyboardButton(text='3', callback_data='3_photo'))
-    count_photo_buttons.add(InlineKeyboardButton(text='4', callback_data='4_photo'))
-    count_photo_buttons.add(InlineKeyboardButton(text='5', callback_data='5_photo'))
-    count_photo_buttons.add(InlineKeyboardButton(text='6', callback_data='6_photo'))
-    bot.send_message(message.chat.id, 'Сколько фотографий отображаем? ', reply_markup=count_photo_buttons)
+    bot.send_message(message.chat.id, 'Сколько фотографий отображаем? ',
+                     reply_markup=dialog_keyboards.count_photo_keyboard())
 
 
 @bot.callback_query_handler(func=lambda call: call.data in ['1_photo', '2_photo', '3_photo',
@@ -114,51 +109,43 @@ def get_count_photo(message: Message) -> None:
 def count_photo_callback(call) -> None:
     CityInfoState.data[call.message.chat.id]['count_photo'] = call.data[0]
     if CityInfoState.data[call.message.chat.id]['criterion'] == 'best_deal':
-        bot.register_next_step_handler(call.message, bestdeal_price_info(call.message))
+        bot.set_state(user_id=call.from_user.id, state=CityInfoState.max_cost, chat_id=call.message.chat.id)
     else:
         bot.register_next_step_handler(call.message, ending_message(call.message))
 
 
-@bot.message_handler()
+@bot.message_handler(state=CityInfoState.max_cost)
 def bestdeal_price_info(message: Message):
     bot.send_message(message.chat.id, 'Введите максимальную цену за сутки: ')
-    bot.register_next_step_handler(message, bestdeal_price_callback(message))
+    CityInfoState.data[message.from_user.id]['max_cost'] = message.text
+    bot.set_state(user_id=message.from_user.id, state=CityInfoState.distance_from_center, chat_id=message.chat.id)
 
 
-@bot.message_handler()
-def bestdeal_price_callback(message: Message):
-    bot.send_message(message.chat.id, 'Что-то')
-    CityInfoState.data[message.chat.id]['max_cost'] = message.text
-    bot.register_next_step_handler(message, bestdeal_distance_info(message))
-
-
-@bot.message_handler()
+@bot.message_handler(state=CityInfoState.distance_from_center)
 def bestdeal_distance_info(message: Message):
     bot.send_message(message.chat.id, 'Введите максимальное расстояние от центра: ')
-    bot.register_next_step_handler(message, bestdeal_distance_callback(message))
-
-
-def bestdeal_distance_callback(message: Message):
-    CityInfoState.data[message.chat.id]['distance_from_center'] = message.text
+    CityInfoState.data[message.from_user.id]['distance_from_center'] = message.text
     bot.register_next_step_handler(message, ending_message(message))
 
 
 def ending_message(message: Message) -> None:
-    text = f'Спасибо за предоставленную информацию, ваш запрос: \n' \
-       f'Город - {CityInfoState.data[message.chat.id]["city"]}\n' \
-       f'Дата заезда - {CityInfoState.data[message.chat.id]["arrival_date"]}\n' \
-       f'Дата отъезда - {CityInfoState.data[message.chat.id]["departure_date"]}\n' \
-       f'Критерий выбора отеля - {CityInfoState.data[message.chat.id]["criterion"]}\n' \
-       f'Валюта расчета - {CityInfoState.data[message.chat.id]["currency"]}\n' \
-       f'Необходимость фотографий - {CityInfoState.data[message.chat.id]["need_photo"]}\n' \
-       f'Количество фотографий - {CityInfoState.data[message.chat.id]["count_photo"]}\n' \
+    text = (
+       f'Спасибо за предоставленную информацию, ваш запрос: \n'
+       f'Город - {CityInfoState.data[message.chat.id]["city"]}\n'
+       f'Дата заезда - {CityInfoState.data[message.chat.id]["arrival_date"]}\n'
+       f'Дата отъезда - {CityInfoState.data[message.chat.id]["departure_date"]}\n'
+       f'Критерий выбора отеля - {CityInfoState.data[message.chat.id]["criterion"]}\n'
+       f'Валюта расчета - {CityInfoState.data[message.chat.id]["currency"]}\n'
+       f'Необходимость фотографий - {CityInfoState.data[message.chat.id]["need_photo"]}\n'
+       f'Количество фотографий - {CityInfoState.data[message.chat.id]["count_photo"]}\n'
        f'Количество дней в отеле - {CityInfoState.data[message.chat.id]["days_in_hotel"]}'
+    )
     bot.send_message(message.chat.id, text)
-    request_hotels(message)
     bot.register_next_step_handler(message, show_hotels(message))
 
 
 def show_hotels(message: Message) -> None:
+    request_hotels(message)
     if CityInfoState.data[message.chat.id]['criterion'] == 'low_price':
         hotels_to_show = sorted(search_lowprice_highprice(), key=lambda x: x['price'])
         if len(hotels_to_show) == 0:
@@ -179,7 +166,7 @@ def show_hotels(message: Message) -> None:
             bot.send_message(message.chat.id, 'Ничего не найдено.')
         bot.send_message(message.chat.id, 'Вот что мне удалось найти по вашему запросу:\n')
         for i in range(config.max_hotels_count):
-            bot.send_message(message.chat.id, sending_hotels_message(hotels_to_show, i))
+            bot.send_message(message.chat.id, sending_hotels_message(hotels_to_show, i, message))
 
 
 def sending_hotels_message(hotels: list, index: int, message) -> str:
@@ -188,7 +175,8 @@ def sending_hotels_message(hotels: list, index: int, message) -> str:
            f"⭐Рейтинг: {hotels[index]['starrating']}\n" \
            f"🌎Адрес: {hotels[index]['address']}\n" \
            f"💴Цена за сутки: {hotels[index]['price']} {CityInfoState.data[message.chat.id]['currency']}\n" \
-           f"💰Цена за {CityInfoState.data[message.chat.id]['days_in_hotel']} суток: {full_price} {CityInfoState.data[message.chat.id]['currency']}\n" \
+           f"💰Цена за {CityInfoState.data[message.chat.id]['days_in_hotel']} суток: " \
+           f"{full_price} {CityInfoState.data[message.chat.id]['currency']}\n" \
            f"➡️Расстояние до центра: {hotels[index]['distance']}"
     return text
 
