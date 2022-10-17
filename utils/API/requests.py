@@ -38,3 +38,20 @@ def request_hotels(message: Message):
                 json.dump(response.text, file, sort_keys=True, indent=4)
     except Exception as err:
         print(f'Ошибка {err}')
+
+
+def request_hotels_photo(hotel_id):
+    url = "https://hotels4.p.rapidapi.com/properties/get-hotel-photos"
+    querystring = {"id": hotel_id}
+
+    headers = {
+        "X-RapidAPI-Key": "e800e098c4msh474c79e3bce3792p154ddajsn238a4e9968f5",
+        "X-RapidAPI-Host": "hotels4.p.rapidapi.com"
+    }
+    try:
+        response = requests.request("GET", url, headers=headers, params=querystring)
+        if response.status_code == requests.codes.ok:
+            with open('request_hotels_photos_from_API.json', 'w') as file:
+                json.dump(response.text, file, sort_keys=True, indent=4)
+    except Exception as err:
+        print(f'Ошибка {err}')

@@ -30,8 +30,9 @@ def cal_arrival_data(call):
                               call.message.chat.id,
                               call.message.message_id)
         CityInfoState.data[call.message.chat.id]['arrival_date'] = result
-        bot.set_state(call.from_user.id, CityInfoState.departure_date, call.message.chat.id)
+        # bot.set_state(call.from_user.id, CityInfoState.departure_date, call.message.chat.id)
         bot.send_message(call.message.chat.id, 'Записал! Теперь введите дату отъезда: ')
+        get_departure_data(call.message)
 
 
 def get_departure_data(message: Message):
