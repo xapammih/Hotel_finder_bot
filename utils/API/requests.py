@@ -51,7 +51,6 @@ def request_hotels_photo(hotel_id):
     try:
         response = requests.request("GET", url, headers=headers, params=querystring)
         if response.status_code == requests.codes.ok:
-            with open('request_hotels_photos_from_API.json', 'w') as file:
-                json.dump(response.text, file, sort_keys=True, indent=4)
+            return response.text
     except Exception as err:
         print(f'Ошибка {err}')

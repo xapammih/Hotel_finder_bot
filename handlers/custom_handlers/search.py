@@ -9,6 +9,7 @@ from keyboards.inline import dialog_keyboards, calendar
 from config_data import config
 from telebot import types
 import loguru
+import requests
 
 
 @bot.message_handler(commands=['search'])
@@ -19,7 +20,7 @@ def search(message: Message) -> None:
                         'count_photo': None, 'hotels_count': None, 'distance_from_center': None,
                         'max_cost': None, 'min_cost': None}
     bot.send_message(message.from_user.id, f'Введите город, в какой вы бы хотели отправиться: ')
-    city(message)
+    bot.register_next_step_handler(message, city)
 
 
 def city_founding() -> list:
@@ -103,7 +104,7 @@ def count_photo_callback(call) -> None:
         bot.set_state(user_id=call.from_user.id, state=CityInfoState.max_cost, chat_id=call.message.chat.id)
         bot.send_message(call.message.chat.id, 'Введите максимальную цену за сутки: ')
     else:
-        bot.register_next_step_handler(call.message, ending_message(call.message))
+        ending_message(call.message)
 
 
 @bot.message_handler(state=CityInfoState.max_cost)
@@ -132,20 +133,20 @@ def ending_message(message: Message) -> None:
        f'Количество дней в отеле - {CityInfoState.data[message.chat.id]["days_in_hotel"]}'
     )
     bot.send_message(message.chat.id, text)
-    bot.register_next_step_handler(message, show_hotels(message))
+    show_hotels(message)
 
 
 def show_hotels(message: Message) -> None:
     # request_hotels(message)
     if CityInfoState.data[message.chat.id]['criterion'] == 'low_price':
         hotels_to_show = sorted(search_lowprice_highprice(), key=lambda x: x['price'])
-
         if len(hotels_to_show) == 0:
             bot.send_message(message.chat.id, 'Ничего не найдено.')
         else:
             bot.send_message(message.chat.id, 'Вот что мне удалось найти по вашему запросу:\n')
-            bot.send_media_group(message.chat.id, search_photos(message, hotels_to_show))
             for i in range(config.max_hotels_count):
+                if int(CityInfoState.data[message.chat.id]['count_photo']) != 0:
+                    bot.send_media_group(message.chat.id, search_photos(message, hotels_to_show[i]))
                 bot.send_message(message.chat.id, sending_hotels_message(hotels_to_show, i, message))
     elif CityInfoState.data[message.chat.id]['criterion'] == 'high_price':
         hotels_to_show = sorted(search_lowprice_highprice(), key=lambda x: x['price'], reverse=True)
@@ -227,22 +228,20 @@ def search_bestdeal(message: Message):
                 return hotels_list_bestdeal
 
 
-def search_photos(message: Message, hotels_list: list):
-    hotels_photo_list = []
-    for hotel in hotels_list:
-        # request_hotels_photo(hotel.get('id'))
-        with open('request_hotels_photos_from_API.json', 'r', encoding='utf-8') as file:
-            pattern = r'(?<="hotelImages",).+?[\]]'
-            result = json.load(file)
-            photo_find = re.search(pattern, result)
-        if photo_find:
-            photos = json.loads(f"{{{photo_find[0]}}}")
-            for i in range(CityInfoState.data[message.chat.id]['count_photo']):
-                hotels_photo_list.append(types.InputMediaPhoto(photos[0]))
-    return hotels_photo_list
-
-
-
+def search_photos(message: Message, cur_hotel: dict):
+    hotels_photo_lst = []
+    pattern = '{size}'
+    result = json.loads(request_hotels_photo(cur_hotel.get('id')))
+    for elem in result['hotelImages']:
+        temp = re.sub(pattern, 'y', elem['baseUrl'])
+        if temp == '':
+            temp = open("utils/misc/No_image_available.svg.png", 'rb')
+        if len(hotels_photo_lst) < int(CityInfoState.data[message.chat.id]['count_photo']):
+            if str(requests.get(temp)).startswith('<Response [2'):
+                hotels_photo_lst.append(types.InputMediaPhoto(temp))
+        else:
+            break
+    return hotels_photo_lst
 
 
 
