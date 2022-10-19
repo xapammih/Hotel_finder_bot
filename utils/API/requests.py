@@ -54,3 +54,14 @@ def request_hotels_photo(hotel_id):
             return response.text
     except Exception as err:
         print(f'Ошибка {err}')
+
+
+def request_rub_currency():
+    url = 'https://www.cbr-xml-daily.ru/daily_json.js'
+    try:
+        response = requests.request("GET", url)
+        if response.status_code == requests.codes.ok:
+            return response.json()['Valute']['USD']['Value']
+    except Exception:
+        return response.json()['Valute']['USD']['Previous']
+

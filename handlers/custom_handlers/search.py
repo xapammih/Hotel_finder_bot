@@ -1,7 +1,7 @@
 from loader import bot
 from telebot.types import Message
 import json
-from utils.API.requests import request_city, request_hotels,request_hotels_photo
+from utils.API.requests import request_city, request_hotels,request_hotels_photo, request_rub_currency
 import re
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from states.city_to_find_info import CityInfoState
@@ -38,7 +38,7 @@ def city_founding() -> list:
 
 
 def city_markup(city_to_find: str):
-    # request_city(city_to_find)
+    request_city(city_to_find)
     cities = city_founding()
     destinations = InlineKeyboardMarkup()
     for city in cities:
@@ -109,7 +109,10 @@ def count_photo_callback(call) -> None:
 
 @bot.message_handler(state=CityInfoState.max_cost)
 def bestdeal_price_info(message: Message):
-    CityInfoState.data[message.from_user.id]['max_cost'] = message.text
+    if CityInfoState.currency == 'RUB':
+        CityInfoState.data[message.from_user.id]['max_cost'] = int(message.text)
+    else:
+        CityInfoState.data[message.from_user.id]['max_cost'] = message.text
     bot.set_state(user_id=message.from_user.id, state=CityInfoState.distance_from_center, chat_id=message.chat.id)
     bot.send_message(message.chat.id, 'Введите максимальное расстояние от центра: ')
 
@@ -137,7 +140,7 @@ def ending_message(message: Message) -> None:
 
 
 def show_hotels(message: Message) -> None:
-    # request_hotels(message)
+    request_hotels(message)
     if CityInfoState.data[message.chat.id]['criterion'] == 'low_price':
         hotels_to_show = sorted(search_lowprice_highprice(), key=lambda x: x['price'])
         if len(hotels_to_show) == 0:
@@ -148,6 +151,7 @@ def show_hotels(message: Message) -> None:
                 if int(CityInfoState.data[message.chat.id]['count_photo']) != 0:
                     bot.send_media_group(message.chat.id, search_photos(message, hotels_to_show[i]))
                 bot.send_message(message.chat.id, sending_hotels_message(hotels_to_show, i, message))
+            bot.delete_state(message.from_user.id, message.chat.id)
     elif CityInfoState.data[message.chat.id]['criterion'] == 'high_price':
         hotels_to_show = sorted(search_lowprice_highprice(), key=lambda x: x['price'], reverse=True)
         if len(hotels_to_show) == 0:
@@ -155,26 +159,36 @@ def show_hotels(message: Message) -> None:
         else:
             bot.send_message(message.chat.id, 'Вот что мне удалось найти по вашему запросу:\n')
             for i in range(config.max_hotels_count):
+                if int(CityInfoState.data[message.chat.id]['count_photo']) != 0:
+                    bot.send_media_group(message.chat.id, search_photos(message, hotels_to_show[i]))
                 bot.send_message(message.chat.id, sending_hotels_message(hotels_to_show, i, message))
+            bot.delete_state(message.from_user.id, message.chat.id)
     elif CityInfoState.data[message.chat.id]['criterion'] == 'best_deal':
         hotels_to_show = sorted(search_bestdeal(message), key=lambda x: x['distance'])
         if len(hotels_to_show) == 0:
-            bot.send_message(message.chat.id, 'Ничего не найдено, уточните критерий поиска: ')
+            bot.send_message(message.chat.id, 'Ничего не найдено, уточните критерий поиска! ')
             bot.set_state(user_id=message.from_user.id, state=CityInfoState.max_cost, chat_id=message.chat.id)
             bot.send_message(message.chat.id, 'Введите максимальную цену за сутки: ')
         else:
             bot.send_message(message.chat.id, 'Вот что мне удалось найти по вашему запросу:\n')
             for i in range(len(hotels_to_show)):
+                if int(CityInfoState.data[message.chat.id]['count_photo']) != 0:
+                    bot.send_media_group(message.chat.id, search_photos(message, hotels_to_show[i]))
                 bot.send_message(message.chat.id, sending_hotels_message(hotels_to_show, i, message))
-    bot.delete_state(message.from_user.id, message.chat.id)
+            bot.delete_state(message.from_user.id, message.chat.id)
 
 
 def sending_hotels_message(hotels: list, index: int, message) -> str:
     full_price = round((hotels[index]['price']) * CityInfoState.data[message.chat.id]['days_in_hotel'])
+    if CityInfoState.data[message.chat.id]['currency'] == 'RUB':
+        full_price *= round(request_rub_currency())
+        dayly_price = round(hotels[index]['price'] * request_rub_currency())
+    else:
+        dayly_price = hotels[index]['price']
     text = f"🏨Наименование: {hotels[index]['name']}\n" \
            f"⭐Рейтинг: {hotels[index]['starrating']}\n" \
            f"🌎Адрес: {hotels[index]['address']}\n" \
-           f"💴Цена за сутки: {hotels[index]['price']} {CityInfoState.data[message.chat.id]['currency']}\n" \
+           f"💴Цена за сутки: {dayly_price} {CityInfoState.data[message.chat.id]['currency']}\n" \
            f"💰Цена за {CityInfoState.data[message.chat.id]['days_in_hotel']} суток: " \
            f"{full_price} {CityInfoState.data[message.chat.id]['currency']}\n" \
            f"➡️Расстояние до центра: {hotels[index]['distance']}"
@@ -213,8 +227,10 @@ def search_bestdeal(message: Message):
             request_hotels = json.loads(f"{{{price_find[0]}}}")
             try:
                 for i in request_hotels['results']:
-                    current_cost = i.get('ratePlan', []).get('price', []).get('exactCurrent', 0)
-                    current_dist = i.get('landmarks', [])[0].get('distance', '').split(' ')[0]
+                    if CityInfoState.data[message.chat.id]['currency'] == 'RUB':
+                        current_cost = round(float(i.get('ratePlan', []).get('price', []).get('exactCurrent', 0))
+                                             * float(request_rub_currency()))
+                        current_dist = i.get('landmarks', [])[0].get('distance', '').split(' ')[0]
                     if float(current_cost) < float(CityInfoState.data[message.chat.id]['max_cost']) and \
                         float(CityInfoState.data[message.chat.id]['distance_from_center']) > float(current_dist):
                         hotels_list_bestdeal.append({'id': i['id'], 'name': i['name'], 'starrating': i['starRating'],
