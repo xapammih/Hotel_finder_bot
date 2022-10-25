@@ -15,8 +15,7 @@ def request_city(city_to_find):
     try:
         response = requests.request("GET", url, headers=headers, params=querystring, timeout=10)
         if response.status_code == requests.codes.ok:
-            with open('request_city_from_API.json', 'w') as file:
-                json.dump(response.text, file, sort_keys=True, indent=4)
+            return response.text
     except Exception as err:
         print(f'Ошибка {err}')
 
@@ -34,8 +33,7 @@ def request_hotels(message: Message):
     try:
         response = requests.request("GET", url, headers=headers, params=querystring, timeout=10)
         if response.status_code == requests.codes.ok:
-            with open('request_hotels_from_API.json', 'w') as file:
-                json.dump(response.text, file, sort_keys=True, indent=4)
+            return response.text
     except Exception as err:
         print(f'Ошибка {err}')
 
