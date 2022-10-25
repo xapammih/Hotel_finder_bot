@@ -43,6 +43,8 @@ def show_database(message: Message) -> None:
     :return:
     """
     show_db_select = sql.execute(f"SELECT hotel_info FROM hotels WHERE chat_id = (?)", (message.chat.id, ))
-    for value in show_db_select:
+    for index, value in enumerate(show_db_select):
         bot.send_message(message.chat.id, value)
+        if index == 10:
+            break
     db.close()

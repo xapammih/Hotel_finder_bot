@@ -320,10 +320,12 @@ def search_bestdeal(message: Message):
         hotels = json.loads(f"{{{price_find[0]}}}")
         try:
             for i in hotels['results']:
+                current_dist = i.get('landmarks', [])[0].get('distance', '').split(' ')[0]
                 if CityInfoState.data[message.chat.id]['currency'] == 'RUB':
                     current_cost = round(float(i.get('ratePlan', []).get('price', []).get('exactCurrent', 0))
                                          * float(request_rub_currency()))
-                    current_dist = i.get('landmarks', [])[0].get('distance', '').split(' ')[0]
+                else:
+                    current_cost = round(float(i.get('ratePlan', []).get('price', []).get('exactCurrent', 0)))
                 if float(current_cost) < float(CityInfoState.data[message.chat.id]['max_cost']) and \
                     float(CityInfoState.data[message.chat.id]['distance_from_center']) > float(current_dist):
                     hotels_list_bestdeal.append({'id': i['id'], 'name': i['name'], 'starrating': i['starRating'],
