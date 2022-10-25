@@ -10,7 +10,7 @@ from config_data import config
 from telebot import types
 from loguru import logger
 import requests
-# from database.history_database import database_worker as db
+from database.history_database import database_worker as db
 
 
 @bot.message_handler(commands=['search'])
@@ -224,7 +224,7 @@ def show_hotels(message: Message) -> None:
                 if int(CityInfoState.data[message.chat.id]['count_photo']) != 0:
                     bot.send_media_group(message.chat.id, search_photos(message, hotels_to_show[i]))
                 text = sending_hotels_message(hotels_to_show, i, message)
-                # db(message, text)
+                db(message, text)
                 bot.send_message(message.chat.id, text)
             bot.delete_state(message.from_user.id, message.chat.id)
     elif CityInfoState.data[message.chat.id]['criterion'] == 'high_price':
@@ -237,7 +237,7 @@ def show_hotels(message: Message) -> None:
                 if int(CityInfoState.data[message.chat.id]['count_photo']) != 0:
                     bot.send_media_group(message.chat.id, search_photos(message, hotels_to_show[i]))
                 text = sending_hotels_message(hotels_to_show, i, message)
-                # db(message, text)
+                db(message, text)
                 bot.send_message(message.chat.id, text)
             bot.delete_state(message.from_user.id, message.chat.id)
     elif CityInfoState.data[message.chat.id]['criterion'] == 'best_deal':
@@ -252,7 +252,7 @@ def show_hotels(message: Message) -> None:
                 if int(CityInfoState.data[message.chat.id]['count_photo']) != 0:
                     bot.send_media_group(message.chat.id, search_photos(message, hotels_to_show[i]))
                 text = sending_hotels_message(hotels_to_show, i, message)
-                # db(message, text)
+                db(message, text)
                 bot.send_message(message.chat.id, text)
             bot.delete_state(message.from_user.id, message.chat.id)
 
