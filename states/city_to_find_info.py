@@ -12,4 +12,4 @@ class CityInfoState(StatesGroup):
     count_photo = State()
     distance_from_center = State()
     max_cost = State()
-
+    hotels_count = State()

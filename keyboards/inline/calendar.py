@@ -3,7 +3,7 @@ from loader import bot
 from states.city_to_find_info import CityInfoState
 from datetime import date, timedelta
 from telebot.types import Message
-from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from loguru import logger
 
 MY_STEP = {'y': 'год', 'm': 'месяц', 'd': 'день'}

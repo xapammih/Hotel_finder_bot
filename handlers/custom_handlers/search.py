@@ -3,7 +3,7 @@ from telebot.types import Message
 import json
 from utils.API.requests import request_city, request_hotels, request_hotels_photo, request_rub_currency
 import re
-from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from states.city_to_find_info import CityInfoState
 from keyboards.inline import dialog_keyboards, calendar
 from config_data import config
@@ -68,6 +68,7 @@ def city(message):
     :return:
     """
     bot.send_message(message.from_user.id, 'Уточните, пожалуйста:', reply_markup=city_markup(message.text))
+    bot.delete_message(message.chat.id, message.message_id)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('id_'))
@@ -77,6 +78,7 @@ def city_inline_callback(call) -> None:
     :param call:
     :return:
     """
+    bot.delete_message(call.message.chat.id, call.message.message_id)
     for i in call.message.reply_markup.keyboard:
         for keyboard in i:
             if keyboard.callback_data == call.data:
@@ -96,11 +98,26 @@ def get_currency(call) -> None:
     :param call:
     :return:
     """
+    bot.delete_message(call.message.chat.id, call.message.message_id)
     CityInfoState.data[call.message.chat.id]['currency'] = call.data
     logger.debug(f'Выбрана валюта: {call.data}')
-    bot.send_message(call.message.chat.id, 'По каким критериям выбираем отель? ',
+    bot.send_message(call.message.chat.id, 'Сколько отелей вам показать? ')
+    bot.set_state(user_id=call.from_user.id, state=CityInfoState.hotels_count, chat_id=call.message.chat.id)
+
+
+@bot.message_handler(state=CityInfoState.hotels_count)
+def get_hotels_count(message: Message):
+    """
+    Функция, запрашивающая и записывающая кол-во отелей для отображения в телеграмм
+    :param message:
+    :return:
+    """
+    bot.delete_message(message.chat.id, message.message_id)
+    config.max_hotels_count = int(message.text)
+    logger.debug(f'Кол-во отелей: {message.text}')
+    bot.send_message(message.chat.id, 'По каким критериям выбираем отель? ',
                      reply_markup=dialog_keyboards.get_criterion_keyboard())
-    bot.set_state(user_id=call.from_user.id, state=CityInfoState.criterion, chat_id=call.message.chat.id)
+    bot.set_state(user_id=message.from_user.id, state=CityInfoState.criterion, chat_id=message.chat.id)
 
 
 @bot.callback_query_handler(func=lambda call: call.data in ['low_price', 'high_price', 'best_deal'])
@@ -110,6 +127,7 @@ def criterion_callback(call) -> None:
     :param call:
     :return:
     """
+    bot.delete_message(call.message.chat.id, call.message.message_id)
     CityInfoState.data[call.message.chat.id]['criterion'] = call.data
     logger.debug(f'Выбран ценовой критерий: {call.data}')
     bot.set_state(user_id=call.from_user.id, state=CityInfoState.need_photo, chat_id=call.message.chat.id)
@@ -124,6 +142,7 @@ def need_photo_callback(call) -> None:
     :param call:
     :return:
     """
+    bot.delete_message(call.message.chat.id, call.message.message_id)
     if call.data == 'нужны_фото':
         CityInfoState.data[call.message.chat.id]['need_photo'] = call.data
         logger.debug(f'Выбрана необходимость фотографий: {call.data}')
@@ -149,6 +168,7 @@ def count_photo_callback(call) -> None:
     :param call:
     :return:
     """
+    bot.delete_message(call.message.chat.id, call.message.message_id)
     CityInfoState.data[call.message.chat.id]['count_photo'] = call.data[0]
     logger.debug(f'Выбрано количество фотографий: {call.data[0]}')
     if CityInfoState.data[call.message.chat.id]['criterion'] == 'best_deal':
@@ -165,6 +185,7 @@ def bestdeal_price_info(message: Message):
     :param message:
     :return:
     """
+    bot.delete_message(message.chat.id, message.message_id)
     if CityInfoState.currency == 'RUB':
         CityInfoState.data[message.from_user.id]['max_cost'] = int(message.text)
         logger.debug(f'Выбрана максимальная цена критерия bestdeal: {message.text}')
@@ -182,6 +203,7 @@ def bestdeal_distance_info(message: Message):
     :param message:
     :return:
     """
+    bot.delete_message(message.chat.id, message.message_id)
     CityInfoState.data[message.from_user.id]['distance_from_center'] = message.text
     logger.debug(f'Выбрана максимальное расстояние от центра критерия bestdeal: {message.text}')
     ending_message(message)
@@ -210,7 +232,7 @@ def ending_message(message: Message) -> None:
 
 def show_hotels(message: Message) -> None:
     """
-    Функция, выводящая в телеграм список отелей(максимум 10)
+    Функция, выводящая в телеграм список отелей
     :param message:
     :return:
     """
@@ -281,7 +303,6 @@ def sending_hotels_message(hotels: list, index: int, message: Message) -> str:
     return text
 
 
-
 def search_lowprice_highprice(message: Message) -> list:
     """
     Функция формирует список отелей для ценового критерия lowprice и highprice
@@ -298,7 +319,9 @@ def search_lowprice_highprice(message: Message) -> list:
                 hotels_list.append({'id': i['id'], 'name': i['name'], 'starrating': i['starRating'],
                                     'address': i.get('address', []).get('streetAddress'),
                                     'distance': i.get('landmarks', [])[0].get('distance', ''),
-                                    'price': i.get('ratePlan', []).get('price', []).get('exactCurrent', 0)})
+                                    'price': i.get('ratePlan', []).get('price', []).get('exactCurrent', 0),
+                                    'hotel_link': i.get('')},
+                                   )
             return hotels_list
 
         except AttributeError:
