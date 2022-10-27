@@ -3,7 +3,7 @@ from telebot.types import Message
 import json
 from utils.API.requests import request_city, request_hotels, request_hotels_photo, request_rub_currency
 import re
-from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from states.city_to_find_info import CityInfoState
 from keyboards.inline import dialog_keyboards, calendar
 from config_data import config
@@ -101,7 +101,7 @@ def get_currency(call) -> None:
     bot.delete_message(call.message.chat.id, call.message.message_id)
     CityInfoState.data[call.message.chat.id]['currency'] = call.data
     logger.debug(f'Выбрана валюта: {call.data}')
-    bot.send_message(call.message.chat.id, 'Сколько отелей вам показать? ')
+    bot.send_message(call.message.chat.id, 'Сколько отелей Вам показать? ')
     bot.set_state(user_id=call.from_user.id, state=CityInfoState.hotels_count, chat_id=call.message.chat.id)
 
 
@@ -299,7 +299,8 @@ def sending_hotels_message(hotels: list, index: int, message: Message) -> str:
            f"💴Цена за сутки: {dayly_price} {CityInfoState.data[message.chat.id]['currency']}\n" \
            f"💰Цена за {CityInfoState.data[message.chat.id]['days_in_hotel']} суток: " \
            f"{full_price} {CityInfoState.data[message.chat.id]['currency']}\n" \
-           f"➡️Расстояние до центра: {hotels[index]['distance']}"
+           f"➡️Расстояние до центра: {hotels[index]['distance']}\n" \
+           f"🌐Ссылка на отель: {hotels[index]['hotel_link']}"
     return text
 
 
@@ -320,7 +321,7 @@ def search_lowprice_highprice(message: Message) -> list:
                                     'address': i.get('address', []).get('streetAddress'),
                                     'distance': i.get('landmarks', [])[0].get('distance', ''),
                                     'price': i.get('ratePlan', []).get('price', []).get('exactCurrent', 0),
-                                    'hotel_link': i.get('')},
+                                    'hotel_link': f'https://hotels.com/ho{i["id"]}'},
                                    )
             return hotels_list
 
