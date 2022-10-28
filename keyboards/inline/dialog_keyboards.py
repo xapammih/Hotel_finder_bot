@@ -1,4 +1,5 @@
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+from utils.API.requests import city_founding
 
 
 def get_criterion_keyboard():
@@ -25,3 +26,17 @@ def count_photo_keyboard():
     count_photo_buttons.add(InlineKeyboardButton(text='5', callback_data='5_photo'))
     count_photo_buttons.add(InlineKeyboardButton(text='6', callback_data='6_photo'))
     return count_photo_buttons
+
+
+def city_markup(city_to_find: str):
+    """
+    Функция делает запрос к API города, формирует и возвращает клавиатуру с вариантами ответа интересующего города
+    :param city_to_find:
+    :return:
+    """
+    cities = city_founding(city_to_find)
+    destinations = InlineKeyboardMarkup()
+    for city in cities:
+        destinations.add(InlineKeyboardButton(text=city['city_name'],
+                                              callback_data=f'id_{city["destination_id"]}'))
+    return destinations

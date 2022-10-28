@@ -1,15 +1,10 @@
 from loader import bot
 from telebot.types import Message
-import json
-from utils.API.requests import request_city, request_hotels, request_hotels_photo, request_rub_currency
-import re
-from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+from utils.API.requests import search_lowprice_highprice, search_bestdeal, search_photos
 from states.city_to_find_info import CityInfoState
 from keyboards.inline import dialog_keyboards, calendar
 from config_data import config
-from telebot import types
 from loguru import logger
-import requests
 from database.history_database import database_worker as db
 
 
@@ -30,44 +25,14 @@ def search(message: Message) -> None:
     bot.register_next_step_handler(message, city)
 
 
-def city_founding(cur_city) -> list:
-    """
-    Функция формирует список с вариантами выбора города из API
-    :return:
-    """
-    pattern = r'(?<="CITY_GROUP",).+?[\]]'
-    result = request_city(cur_city)
-    find = re.search(pattern, result)
-    if find:
-        suggestions = json.loads(f"{{{find[0]}}}")
-    cities = list()
-    for dest_id in suggestions['entities']:
-        clear_destination = re.sub(r'<.*?>', '', dest_id['caption'])
-        cities.append({'city_name': clear_destination, 'destination_id': dest_id['destinationId']})
-    return cities
-
-
-def city_markup(city_to_find: str):
-    """
-    Функция делает запрос к API города, формирует и возвращает клавиатуру с вариантами ответа интересующего города
-    :param city_to_find:
-    :return:
-    """
-    cities = city_founding(city_to_find)
-    destinations = InlineKeyboardMarkup()
-    for city in cities:
-        destinations.add(InlineKeyboardButton(text=city['city_name'],
-                                              callback_data=f'id_{city["destination_id"]}'))
-    return destinations
-
-
 def city(message):
     """
     Уточняющая город функция
     :param message:
     :return:
     """
-    bot.send_message(message.from_user.id, 'Уточните, пожалуйста:', reply_markup=city_markup(message.text))
+    bot.send_message(message.from_user.id, 'Уточните, пожалуйста:',
+                     reply_markup=dialog_keyboards.city_markup(message.text))
     bot.delete_message(message.chat.id, message.message_id)
 
 
@@ -270,7 +235,11 @@ def show_hotels(message: Message) -> None:
             bot.send_message(message.chat.id, 'Введите максимальную цену за сутки: ')
         else:
             bot.send_message(message.chat.id, 'Вот что мне удалось найти по вашему запросу:\n')
-            for i in range(len(hotels_to_show)):
+            if config.max_hotels_count > len(hotels_to_show):
+                hotels_count_to_show = len(hotels_to_show)
+            else:
+                hotels_count_to_show = config.max_hotels_count
+            for i in range(hotels_count_to_show):
                 if int(CityInfoState.data[message.chat.id]['count_photo']) != 0:
                     bot.send_media_group(message.chat.id, search_photos(message, hotels_to_show[i]))
                 text = sending_hotels_message(hotels_to_show, i, message)
@@ -304,85 +273,7 @@ def sending_hotels_message(hotels: list, index: int, message: Message) -> str:
     return text
 
 
-def search_lowprice_highprice(message: Message) -> list:
-    """
-    Функция формирует список отелей для ценового критерия lowprice и highprice
-    :return:
-    """
-    hotels_list = []
-    pattern = r'(?<=,)"results":.+?(?=,"pagination)'
-    result = request_hotels(message)
-    price_find = re.search(pattern, result)
-    if price_find:
-        hotels = json.loads(f"{{{price_find[0]}}}")
-        try:
-            for i in hotels['results']:
-                hotels_list.append({'id': i['id'], 'name': i['name'], 'starrating': i['starRating'],
-                                    'address': i.get('address', []).get('streetAddress'),
-                                    'distance': i.get('landmarks', [])[0].get('distance', ''),
-                                    'price': i.get('ratePlan', []).get('price', []).get('exactCurrent', 0),
-                                    'hotel_link': f'https://hotels.com/ho{i["id"]}'},
-                                   )
-            return hotels_list
 
-        except AttributeError:
-            hotels_list.append(dict())
-            return hotels_list
-
-
-def search_bestdeal(message: Message):
-    """
-    Функция формирует список отелей для ценового критерия bestdeal
-    :param message:
-    :return:
-    """
-    hotels_list_bestdeal = []
-    pattern = r'(?<=,)"results":.+?(?=,"pagination)'
-    result = request_hotels(message)
-    price_find = re.search(pattern, result)
-    if price_find:
-        hotels = json.loads(f"{{{price_find[0]}}}")
-        try:
-            for i in hotels['results']:
-                current_dist = i.get('landmarks', [])[0].get('distance', '').split(' ')[0]
-                if CityInfoState.data[message.chat.id]['currency'] == 'RUB':
-                    current_cost = round(float(i.get('ratePlan', []).get('price', []).get('exactCurrent', 0))
-                                         * float(request_rub_currency()))
-                else:
-                    current_cost = round(float(i.get('ratePlan', []).get('price', []).get('exactCurrent', 0)))
-                if float(current_cost) < float(CityInfoState.data[message.chat.id]['max_cost']) and \
-                    float(CityInfoState.data[message.chat.id]['distance_from_center']) > float(current_dist):
-                    hotels_list_bestdeal.append({'id': i['id'], 'name': i['name'], 'starrating': i['starRating'],
-                                        'address': i.get('address', []).get('streetAddress'),
-                                        'distance': i.get('landmarks', [])[0].get('distance', ''),
-                                        'price': i.get('ratePlan', []).get('price', []).get('exactCurrent', 0)})
-
-            return hotels_list_bestdeal
-        except AttributeError:
-            hotels_list_bestdeal.append(dict())
-            return hotels_list_bestdeal
-
-
-def search_photos(message: Message, cur_hotel: dict):
-    """
-    Функция, формирующая список медиаданных(фотографий) для одного отеля
-    :param message:
-    :param cur_hotel:
-    :return:
-    """
-    hotels_photo_lst = []
-    pattern = '{size}'
-    result = json.loads(request_hotels_photo(cur_hotel.get('id')))
-    for elem in result['hotelImages']:
-        temp = re.sub(pattern, 'y', elem['baseUrl'])
-        if temp == '':
-            temp = open("utils/misc/No_image_available.svg.png", 'rb')
-        if len(hotels_photo_lst) < int(CityInfoState.data[message.chat.id]['count_photo']):
-            if str(requests.get(temp)).startswith('<Response [2'):
-                hotels_photo_lst.append(types.InputMediaPhoto(temp))
-        else:
-            break
-    return hotels_photo_lst
 
 
 
